@@ -1,0 +1,43 @@
+{
+  "criteria": {
+    "rubric_based_final_response_quality_v1": {
+      "threshold": 0.8,
+      "judgeModelOptions": {
+        "judgeModel": "gemini-3.1-pro",
+        "numSamples": 1
+      },
+      "rubrics": [
+        {
+          "rubricId": "relevance_and_helpfulness",
+          "rubricContent": { 
+            "textProperty": "The response directly addresses the user's query and accurately identifies the company and its ticker symbol." 
+          }
+        },
+        {
+          "rubricId": "report_structure",
+          "rubricContent": { 
+            "textProperty": "The response is cleanly structured into the required sections: Executive Summary & Overview, Financial Health & Valuation, Bull Case, Bear Case, and Analyst Sentiment & Conclusion." 
+          }
+        },
+        {
+          "rubricId": "data_formatting",
+          "rubricContent": { 
+            "textProperty": "The response presents numbers clearly with appropriate units (e.g., $B, $M, percentages) and uses real data rather than placeholders." 
+          }
+        },
+        {
+          "rubricId": "objectivity_and_balance",
+          "rubricContent": { 
+            "textProperty": "The analysis remains balanced, objective, and unbiased, clearly presenting both the opportunities (Bull Case) and the risks (Bear Case)." 
+          }
+        },
+        {
+          "rubricId": "disclaimer_inclusion",
+          "rubricContent": { 
+            "textProperty": "The response includes a brief standard disclaimer stating that the analysis is for educational and informational purposes and is not financial advice." 
+          }
+        }
+      ]
+    }
+  }
+}

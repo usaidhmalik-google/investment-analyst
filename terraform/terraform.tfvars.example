@@ -1,0 +1,8 @@
+# ==============================================================================
+# Project Aegis: Brownfield Deployment Variables Template
+# ==============================================================================
+# Copy this file to terraform.tfvars and fill in the 3 variables:
+
+project_id           = "<YOUR_GCP_PROJECT_ID>"
+existing_vpc_name    = "<EXISTING_CORPORATE_VPC_NAME>"
+existing_subnet_name = "<EXISTING_WORKLOAD_SUBNET_NAME>"

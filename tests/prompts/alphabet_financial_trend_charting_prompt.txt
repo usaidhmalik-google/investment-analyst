@@ -1,0 +1,27 @@
+I am providing a CSV containing five years of quarterly revenue, net income, and free cash flow for Alphabet (GOOGL). Write a Python script to calculate the compound annual growth rate (CAGR) for each metric and plot a dual-axis trend line showing Revenue vs Free Cash Flow Margin.
+
+Here is the CSV data:
+```csv
+Quarter,Revenue_Millions,Net_Income_Millions,Free_Cash_Flow_Millions
+Q1 2021,55314,17930,13312
+Q2 2021,61880,18525,16394
+Q3 2021,65118,18936,18720
+Q4 2021,75325,20642,18552
+Q1 2022,68011,16436,15321
+Q2 2022,69685,16002,12594
+Q3 2022,69092,13910,16077
+Q4 2022,76048,13624,16015
+Q1 2023,69787,15051,17217
+Q2 2023,74604,18368,21777
+Q3 2023,76693,19689,22601
+Q4 2023,86310,20687,7946
+Q1 2024,80539,23662,16837
+Q2 2024,84742,23619,13454
+Q3 2024,88268,26301,17637
+Q4 2024,96469,28504,21382
+Q1 2025,90124,27890,21120
+Q2 2025,96430,30120,24500
+Q3 2025,101250,32410,26800
+Q4 2025,110450,35100,28900
+
+```

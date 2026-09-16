@@ -1,0 +1,6 @@
+Perform an exhaustive fundamental equity research evaluation of [Company Name] ([Ticker]). Utilizing available market and financial tools, synthesize:
+1. Executive Investment Thesis: Core value proposition, moat durability, and market positioning.
+2. Valuation & Multiples: Current price, market capitalization, trailing and forward P/E, 52-week trading range vs historical averages.
+3. Financial Health & Profitability: Total revenue, YoY revenue growth trajectory, gross, operating, and net margins, return on equity (ROE), and free cash flow generation.
+4. Catalysts & Headwinds: Key growth drivers (e.g. AI monetization, cloud acceleration) vs downside risks (regulatory, competitive, macro).
+5. Investment Rating & Target Valuation: Formulate a clear recommendation (BUY, HOLD, or SELL) with justifiable upside/downside price targets.
