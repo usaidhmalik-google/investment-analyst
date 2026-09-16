@@ -9,7 +9,7 @@ The agent retrieves real-time financial market data, fundamental metrics, and re
 ## 📁 Project Structure
 
 ```
-investment-anaylst/
+investment-analyst/
 ├── agent.py            # ADK root_agent definition with tools & instructions
 ├── tools.py            # Financial research tools (quotes, metrics, news via yfinance)
 ├── main.py             # User-friendly CLI runner (interactive REPL & single-shot queries)
@@ -55,7 +55,7 @@ python main.py "Give me an investment analysis of NVDA"
 
 #### Option B: Google ADK CLI (`adk run`)
 
-> **Note on Folder Naming**: The ADK CLI (`adk run`) requires agent package names to be valid Python identifiers (underscores only, no hyphens). A symlink `investment_analyst` is provided pointing to `investment-anaylst`.
+> **Note on Agent Invocation**: Run the agent directly using `python main.py` or through Google ADK.
 
 From the parent folder:
 ```bash

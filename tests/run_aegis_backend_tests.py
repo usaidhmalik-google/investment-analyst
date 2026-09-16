@@ -27,9 +27,9 @@ logger = logging.getLogger("aegis-tests")
 
 DEFAULT_AEGIS_URL = "https://aegis-gateway-wk6c5cgcza-uc.a.run.app"
 DEFAULT_PROJECT = "aegis-testing-508614"
-DEFAULT_LOCATION = "us-central1"
-DEFAULT_MODEL = "gemini-2.5-flash"
-JUDGE_MODEL = "gemini-2.5-pro"
+DEFAULT_LOCATION = "global"
+DEFAULT_MODEL = "gemini-3.1-pro-preview"
+JUDGE_MODEL = "gemini-3.1-pro-preview"
 
 BENCHMARK_SCENARIOS = [
     {
@@ -135,7 +135,12 @@ def execute_agent_via_aegis(
 ) -> Dict[str, Any]:
     """Execute the agent turn routed EXCLUSIVELY through Aegis Gateway."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    agent_script = os.path.join(script_dir, "investment_analyst_agent.py")
+    candidates = [
+        os.path.expanduser("~/investment-analyst/main.py"),
+        os.path.join(os.path.dirname(script_dir), "investment-analyst", "main.py"),
+        os.path.join(script_dir, "investment_analyst_agent.py"),
+    ]
+    agent_script = next((c for c in candidates if os.path.exists(c)), candidates[0])
 
     cmd = [
         sys.executable,
@@ -328,58 +333,63 @@ def main():
     total_tools = sum(len(r["agent_result"].get("tools_called", [])) for r in scenario_results)
     total_bq_events = sum(len(r.get("bq_telemetry", [])) for r in scenario_results)
 
-    scorecard_path = os.path.join(script_dir, "outputs", "BENCHMARK_SCORECARD_AEGIS_BACKEND_ONLY.md")
+    scorecard_path = os.path.join(script_dir, "outputs", "BENCHMARK_SCORECARD_AEGIS_GEMINI_3_1_PRO.md")
+    scorecard_legacy = os.path.join(script_dir, "outputs", "BENCHMARK_SCORECARD_AEGIS_BACKEND_ONLY.md")
     os.makedirs(os.path.dirname(scorecard_path), exist_ok=True)
 
-    with open(scorecard_path, "w") as f:
-        f.write("# Benchmark Scorecard: Project Aegis Exclusive Backend Run\n\n")
-        f.write(f"**Execution Mode:** Exclusively Project Aegis AI Gateway (`{DEFAULT_AEGIS_URL}`)\n")
-        f.write(f"**Direct Vertex AI Baseline:** Disabled (100% Routed via Aegis)\n")
-        f.write(f"**Agent Model:** `{DEFAULT_MODEL}`\n")
-        f.write(f"**LLM Evaluator Judge:** `{JUDGE_MODEL}`\n")
-        f.write(f"**Suite ID:** `{suite_id}`\n")
-        f.write(f"**Generated:** {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n")
-        f.write("---\n\n")
-        f.write("## 1. Executive Performance Metrics\n\n")
-        f.write("| Metric | Measured Value | Operational Meaning |\n")
-        f.write("| :--- | :---: | :--- |\n")
-        f.write(f"| **Overall Quality Score** | **{mean_quality}%** | Composite CIO quality score across all 7 scenarios |\n")
-        f.write(f"| **Mean Response Latency** | **{mean_latency}s** | Average end-to-end latency through Aegis Gateway |\n")
-        f.write(f"| **Total Tokens Consumed** | **{total_tokens:,}** | Cumulative prompt + candidates tokens |\n")
-        f.write(f"| **Total Tool Invocations** | **{total_tools} calls** | Dynamic multi-turn function calling activity |\n")
-        f.write(f"| **BigQuery Telemetry Events** | **{total_bq_events} logged** | Audit events captured in `aegis_telemetry.routing_logs` |\n\n")
-        f.write("---\n\n")
-        f.write("## 2. Scenario-by-Scenario Evaluation\n\n")
-        f.write("| Scenario ID | Scenario Name | Latency | Tokens | Tools | Judge Score | BigQuery Audit | Judge Verdict |\n")
-        f.write("| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |\n")
-        for r in scenario_results:
-            sc = r["scenario"]
-            ar = r["agent_result"]
-            je = r["judge_eval"]
-            bq = r.get("bq_telemetry", [])
-            lat = f"{ar.get('latency_seconds', 0):.2f}s"
-            tok = f"{ar.get('usage', {}).get('total_tokens', 0):,}"
-            tools = str(len(ar.get("tools_called", [])))
-            score = f"**{je.get('overall_quality_pct', 0):.0f}%**"
-            bq_status = f"{len(bq)} calls (200 OK)" if bq else "Logged via proxy"
-            critique = je.get("critique", "").replace("\n", " ")
-            f.write(f"| **{sc['id']}** | {sc['name']} | {lat} | {tok} | {tools} | {score} | {bq_status} | {critique} |\n")
-        f.write("\n---\n\n")
-        f.write("## 3. Five-Dimensional Quality Rubric Breakdown\n\n")
-        dim_keys = [
-            ("Financial & Math Accuracy", "financial_accuracy"),
-            ("Completeness & Structure", "completeness_structure"),
-            ("Factual Grounding", "factual_grounding"),
-            ("Code Generation Quality", "code_quality"),
-            ("Guardrail & Security Robustness", "guardrail_robustness"),
-        ]
-        f.write("| Dimension | Average Score (1–5) | Operational Meaning & Competency |\n")
-        f.write("| :--- | :---: | :--- |\n")
-        for label, k in dim_keys:
-            vals = [r["judge_eval"].get(k, 0) for r in scenario_results if r["judge_eval"].get(k, 0) > 0]
-            avg_val = round(sum(vals) / len(vals), 1) if vals else 0.0
-            f.write(f"| **{label}** | **{avg_val} / 5.0** | Graded against enterprise financial standards |\n")
-        f.write("\n")
+    def write_scorecard(path):
+        with open(path, "w") as f:
+            f.write("# Benchmark Scorecard: Project Aegis Backend (Gemini 3.1 Pro)\n\n")
+            f.write(f"**Execution Mode:** Exclusively Project Aegis AI Gateway (`{DEFAULT_AEGIS_URL}`)\n")
+            f.write(f"**Direct Vertex AI Baseline:** Disabled (100% Routed via Aegis)\n")
+            f.write(f"**Agent Model:** `{DEFAULT_MODEL}`\n")
+            f.write(f"**LLM Evaluator Judge:** `{JUDGE_MODEL}`\n")
+            f.write(f"**Suite ID:** `{suite_id}`\n")
+            f.write(f"**Generated:** {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n")
+            f.write("---\n\n")
+            f.write("## 1. Executive Performance Metrics\n\n")
+            f.write("| Metric | Measured Value | Operational Meaning |\n")
+            f.write("| :--- | :---: | :--- |\n")
+            f.write(f"| **Overall Quality Score** | **{mean_quality}%** | Composite CIO quality score across all 7 scenarios |\n")
+            f.write(f"| **Mean Response Latency** | **{mean_latency}s** | Average end-to-end latency through Aegis Gateway |\n")
+            f.write(f"| **Total Tokens Consumed** | **{total_tokens:,}** | Cumulative prompt + candidates tokens |\n")
+            f.write(f"| **Total Tool Invocations** | **{total_tools} calls** | Dynamic multi-turn function calling activity |\n")
+            f.write(f"| **BigQuery Telemetry Events** | **{total_bq_events} logged** | Audit events captured in `aegis_telemetry.routing_logs` |\n\n")
+            f.write("---\n\n")
+            f.write("## 2. Scenario-by-Scenario Evaluation\n\n")
+            f.write("| Scenario ID | Scenario Name | Latency | Tokens | Tools | Judge Score | BigQuery Audit | Judge Verdict |\n")
+            f.write("| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |\n")
+            for r in scenario_results:
+                sc = r["scenario"]
+                ar = r["agent_result"]
+                je = r["judge_eval"]
+                bq = r.get("bq_telemetry", [])
+                lat = f"{ar.get('latency_seconds', 0):.2f}s"
+                tok = f"{ar.get('usage', {}).get('total_tokens', 0):,}"
+                tools = str(len(ar.get("tools_called", [])))
+                score = f"**{je.get('overall_quality_pct', 0):.0f}%**"
+                bq_status = f"{len(bq)} calls (200 OK)" if bq else "Logged via proxy"
+                critique = je.get("critique", "").replace("\n", " ")
+                f.write(f"| **{sc['id']}** | {sc['name']} | {lat} | {tok} | {tools} | {score} | {bq_status} | {critique} |\n")
+            f.write("\n---\n\n")
+            f.write("## 3. Five-Dimensional Quality Rubric Breakdown\n\n")
+            dim_keys = [
+                ("Financial & Math Accuracy", "financial_accuracy"),
+                ("Completeness & Structure", "completeness_structure"),
+                ("Factual Grounding", "factual_grounding"),
+                ("Code Generation Quality", "code_quality"),
+                ("Guardrail & Security Robustness", "guardrail_robustness"),
+            ]
+            f.write("| Dimension | Average Score (1–5) | Operational Meaning & Competency |\n")
+            f.write("| :--- | :---: | :--- |\n")
+            for label, k in dim_keys:
+                vals = [r["judge_eval"].get(k, 0) for r in scenario_results if r["judge_eval"].get(k, 0) > 0]
+                avg_val = round(sum(vals) / len(vals), 1) if vals else 0.0
+                f.write(f"| **{label}** | **{avg_val} / 5.0** | Graded against enterprise financial standards |\n")
+            f.write("\n")
+
+    write_scorecard(scorecard_path)
+    write_scorecard(scorecard_legacy)
 
     json_path = os.path.join(script_dir, "outputs", f"aegis_backend_only_results_{run_timestamp}.json")
     with open(json_path, "w") as f:

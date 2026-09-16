@@ -2,7 +2,10 @@
 
 import math
 from typing import Any, Dict, List
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 
 # Offline fixtures for airgapped / private VPC environments without public internet
 OFFLINE_FIXTURES: Dict[str, Dict[str, Any]] = {
@@ -283,6 +286,31 @@ def _format_percent(val: Any) -> str:
         return str(val)
 
 
+import time
+
+# Tool invocation audit log for benchmarking and observability
+EXECUTED_TOOLS: List[Dict[str, Any]] = []
+
+
+def reset_tool_history() -> None:
+    """Clear the recorded tool invocations."""
+    EXECUTED_TOOLS.clear()
+
+
+def get_tool_history() -> List[Dict[str, Any]]:
+    """Return the list of recorded tool invocations."""
+    return list(EXECUTED_TOOLS)
+
+
+def _record_tool(name: str, args: Dict[str, Any]) -> None:
+    """Record a tool invocation for observability."""
+    EXECUTED_TOOLS.append({
+        "tool": name,
+        "args": args,
+        "timestamp": time.time(),
+    })
+
+
 def get_stock_quote(ticker: str) -> Dict[str, Any]:
     """Retrieve real-time market quote, valuation, and trading range for a stock ticker.
 
@@ -294,6 +322,7 @@ def get_stock_quote(ticker: str) -> Dict[str, Any]:
         market cap, P/E ratio, 52-week high/low, and trading volume.
     """
     cleaned_ticker = ticker.strip().upper()
+    _record_tool("get_stock_quote", {"ticker": cleaned_ticker})
     try:
         t = yf.Ticker(cleaned_ticker)
         info = t.info
@@ -336,6 +365,7 @@ def get_financial_metrics(ticker: str) -> Dict[str, Any]:
         earnings per share (EPS), return on equity, free cash flow, and analyst recommendations.
     """
     cleaned_ticker = ticker.strip().upper()
+    _record_tool("get_financial_metrics", {"ticker": cleaned_ticker})
     try:
         t = yf.Ticker(cleaned_ticker)
         info = t.info
@@ -377,6 +407,7 @@ def get_company_news(ticker: str, limit: int = 5) -> List[Dict[str, Any]]:
         A list of dictionaries with headline titles, publishers, and publication dates.
     """
     cleaned_ticker = ticker.strip().upper()
+    _record_tool("get_company_news", {"ticker": cleaned_ticker, "limit": limit})
     try:
         t = yf.Ticker(cleaned_ticker)
         raw_news = t.news or []

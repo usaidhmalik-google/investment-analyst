@@ -20,7 +20,7 @@ The agent routes all model inference through **Project Aegis AI Gateway** (`aegi
 │   ├── main.py                  # Dynamic proxy router, Vertex AI client, BigQuery audit sink
 │   ├── requirements.txt         # FastAPI, httpx, google-cloud-bigquery dependencies
 │   └── Dockerfile               # Container definition for Cloud Run deployment
-├── investment-anaylst/          # Autonomous Investment Analyst Agent
+├── investment-analyst/          # Autonomous Investment Analyst Agent
 │   ├── agent.py                 # Core agentic loop with function calling and thinking control
 │   ├── tools.py                 # Financial data tools (quotes, metrics, news)
 │   ├── main.py                  # Entrypoint and interactive CLI
