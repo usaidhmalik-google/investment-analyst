@@ -1,0 +1,50 @@
+# Copy to terraform.tfvars (gitignored) and adjust.
+#   cp terraform.tfvars.example terraform.tfvars
+
+project_id  = "fde-investment-analyst-sandbox-dev"
+region      = "us-central1"
+environment = "dev"
+
+# REQUIRED: Google group allowed through IAP to the frontend.
+analyst_group_email = "investment-analysts@malik-llc.example"
+
+# Direct VPC egress for the frontend. Subnet must have Private Google Access.
+network    = "default"
+subnetwork = "default"
+
+# Set to false if the project already has a Firestore (default) database.
+create_firestore_database = true
+firestore_location        = "us-central1"
+
+bigquery_location = "us-central1"
+# bigquery_partition_expiration_days = 400
+
+# Models / prompts
+router_model    = "gemini-3.5-flash"
+reasoning_model = "gemini-2.5-pro"
+prompt_version  = "v1"
+sec_user_agent  = "MALIK LLC Investment Analyst admin@malik-llc.example"
+
+# Optional Model Armor template; leave empty to disable.
+model_armor_template = ""
+# model_armor_template = "projects/fde-investment-analyst-sandbox-dev/locations/us-central1/templates/analyst-default"
+
+# Autoscaling
+backend_min_instances  = 0
+backend_max_instances  = 5
+frontend_min_instances = 0
+frontend_max_instances = 3
+
+# Images used on first create only (Cloud Build owns rollouts afterwards).
+# backend_image  = "us-central1-docker.pkg.dev/fde-investment-analyst-sandbox-dev/investment-analyst/investment-analyst-backend:latest"
+# frontend_image = "us-central1-docker.pkg.dev/fde-investment-analyst-sandbox-dev/investment-analyst/investment-analyst-frontend:latest"
+
+# Only if the frontend proxy cannot attach an ID token to backend calls.
+backend_invoker_iam_disabled = false
+
+deletion_protection = false
+
+# Optional CI trigger (connect the GitHub repo to Cloud Build first).
+enable_github_trigger = false
+# github_owner        = "malik-llc"
+# github_repo         = "investment-analyst"

@@ -1,0 +1,135 @@
+# ==============================================================================
+# Investment Analyst Agent — CI/CD pipeline
+# ==============================================================================
+# Steps run sequentially and the build stops at the first failure:
+#   1. backend-quality   ruff format/lint + pytest (>= 80% coverage, offline)
+#   2. frontend-quality  npm ci + eslint + tsc + vitest
+#   3. build/push        backend + frontend images (:$SHORT_SHA and :latest)
+#   4. deploy            roll new images onto the Terraform-managed Cloud Run
+#                        services (image only; all other config is Terraform's)
+#
+# Triggered builds get $SHORT_SHA automatically. For manual builds:
+#   gcloud builds submit --config=cloudbuild.yaml \
+#     --substitutions=SHORT_SHA=$(git rev-parse --short HEAD) \
+#     --service-account=projects/<PROJECT_ID>/serviceAccounts/investment-analyst-build-sa@<PROJECT_ID>.iam.gserviceaccount.com \
+#     --default-buckets-behavior=regional-user-owned-bucket .
+# ==============================================================================
+
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: investment-analyst
+  _BACKEND_SERVICE: investment-analyst-backend
+  _FRONTEND_SERVICE: investment-analyst-frontend
+
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/investment-analyst-build-sa@$PROJECT_ID.iam.gserviceaccount.com
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+steps:
+  # ----------------------------------------------------------------------------
+  # 1. Backend quality gate
+  # ----------------------------------------------------------------------------
+  - id: backend-quality
+    name: python:3.11-slim
+    dir: investment-analyst
+    entrypoint: bash
+    env:
+      - ANALYST_OFFLINE_MODE=true
+      - PIP_DISABLE_PIP_VERSION_CHECK=1
+      - PIP_NO_CACHE_DIR=1
+    args:
+      - -euo
+      - pipefail
+      - -c
+      - |
+        pip install -r requirements-dev.txt
+        ruff format --check .
+        ruff check .
+        pytest --cov=analyst --cov-fail-under=80
+
+  # ----------------------------------------------------------------------------
+  # 2. Frontend quality gate
+  # ----------------------------------------------------------------------------
+  - id: frontend-quality
+    name: node:20
+    dir: frontend
+    entrypoint: bash
+    env:
+      - CI=true
+    args:
+      - -euo
+      - pipefail
+      - -c
+      - |
+        npm ci
+        npm run lint
+        npm run typecheck
+        npm test
+
+  # ----------------------------------------------------------------------------
+  # 3. Build and push images
+  # ----------------------------------------------------------------------------
+  - id: backend-build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-backend:$SHORT_SHA
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-backend:latest
+      - investment-analyst
+
+  - id: backend-push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-backend
+
+  - id: frontend-build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-frontend:$SHORT_SHA
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-frontend:latest
+      - frontend
+
+  - id: frontend-push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-frontend
+
+  # ----------------------------------------------------------------------------
+  # 4. Deploy (image only — env, scaling, IAM, IAP and networking stay in
+  #    terraform/analyst, which ignores image drift).
+  # ----------------------------------------------------------------------------
+  - id: backend-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_BACKEND_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-backend:$SHORT_SHA
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
+  # The frontend uses the (beta) direct Cloud Run IAP integration, so deploy
+  # via the beta track to keep the service's launch stage consistent.
+  - id: frontend-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - beta
+      - run
+      - deploy
+      - ${_FRONTEND_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/investment-analyst-frontend:$SHORT_SHA
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet

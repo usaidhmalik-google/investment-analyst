@@ -1,0 +1,54 @@
+#!/bin/sh
+# Sourced (not executed) by the nginx image's /docker-entrypoint.sh before
+# 20-envsubst-on-templates.sh renders /etc/nginx/templates/*.template.
+# Derives the variables the template needs from BACKEND_URL.
+#
+#   BACKEND_URL   https://analyst-backend-xxxx-uc.a.run.app   (origin only, no path)
+#   BACKEND_HOST  Host header sent upstream   (default: host[:port] of BACKEND_URL)
+#   BACKEND_SNI   TLS SNI name                (default: BACKEND_HOST without port)
+#   DNS_RESOLVER  nginx resolver address      (default: first nameserver in /etc/resolv.conf)
+
+if [ -z "${BACKEND_URL:-}" ]; then
+  echo "15-backend-host.envsh: ERROR: BACKEND_URL is not set" >&2
+  exit 1
+fi
+
+# Normalise: drop trailing slashes.
+while [ "${BACKEND_URL%/}" != "${BACKEND_URL}" ]; do BACKEND_URL="${BACKEND_URL%/}"; done
+case "$BACKEND_URL" in
+  http://*|https://*) ;;
+  *) echo "15-backend-host.envsh: ERROR: BACKEND_URL must start with http:// or https://" >&2; exit 1 ;;
+esac
+_ia_rest="${BACKEND_URL#*://}"
+case "$_ia_rest" in
+  */*) echo "15-backend-host.envsh: WARNING: path in BACKEND_URL is ignored; using origin only" >&2
+       BACKEND_URL="${BACKEND_URL%%://*}://${_ia_rest%%/*}"
+       _ia_rest="${_ia_rest%%/*}" ;;
+esac
+export BACKEND_URL
+
+if [ -z "${BACKEND_HOST:-}" ]; then
+  BACKEND_HOST="$_ia_rest"
+fi
+export BACKEND_HOST
+
+if [ -z "${BACKEND_SNI:-}" ]; then
+  BACKEND_SNI="${BACKEND_HOST%%:*}"
+fi
+export BACKEND_SNI
+
+if [ -z "${DNS_RESOLVER:-}" ]; then
+  DNS_RESOLVER="$(awk '/^nameserver/ { print $2; exit }' /etc/resolv.conf 2>/dev/null)"
+  [ -n "$DNS_RESOLVER" ] || DNS_RESOLVER="8.8.8.8"
+fi
+case "$DNS_RESOLVER" in
+  \[*) ;;
+  *:*) DNS_RESOLVER="[$DNS_RESOLVER]" ;;  # IPv6 literal must be bracketed
+esac
+export DNS_RESOLVER
+
+: "${PORT:=8080}"
+export PORT
+
+unset _ia_rest
+echo "15-backend-host.envsh: proxying /api/ and /healthz to $BACKEND_URL (Host: $BACKEND_HOST, SNI: $BACKEND_SNI, resolver: $DNS_RESOLVER, port: $PORT)"

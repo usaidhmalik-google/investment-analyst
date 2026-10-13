@@ -1,0 +1,38 @@
+[project]
+name = "investment-analyst"
+version = "1.0.0"
+description = "Multi-agent Investment Analyst Agent (Google ADK + FastAPI) for MALIK LLC"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["adk_agents"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "A", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003", "S101", "B008", "UP040", "SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE", "RUF012", "E501"]
+"evals/**" = ["S", "BLE", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    "ignore::FutureWarning",
+]
+
+[tool.coverage.run]
+source = ["analyst"]
+branch = true
+omit = ["analyst/main.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

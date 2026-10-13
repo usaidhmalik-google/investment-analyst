@@ -137,7 +137,7 @@ def execute_agent_via_aegis(
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.expanduser("~/investment-analyst/main.py"),
-        os.path.join(os.path.dirname(script_dir), "investment-analyst", "main.py"),
+        os.path.join(os.path.dirname(script_dir), "legacy", "aegis-agent", "main.py"),
         os.path.join(script_dir, "investment_analyst_agent.py"),
     ]
     agent_script = next((c for c in candidates if os.path.exists(c)), candidates[0])
