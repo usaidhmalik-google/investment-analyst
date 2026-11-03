@@ -1,95 +1,32 @@
-# 📊 Google ADK Investment Analyst Agent
+# Investment Analyst — backend
 
-A lightweight, super-simple stock research agent built with **Google ADK** (Agent Development Kit) and powered by **Gemini 2.5 Flash**.
+This is the FastAPI and Google ADK service. For the overall architecture and design traceability, see the [root README](../README.md). The HTTP and SSE contract is in [docs/API_CONTRACT.md](../docs/API_CONTRACT.md).
 
-The agent retrieves real-time financial market data, fundamental metrics, and recent company news, synthesizing them into structured, objective investment research summaries.
-
----
-
-## 📁 Project Structure
-
-```
-investment-analyst/
-├── agent.py            # ADK root_agent definition with tools & instructions
-├── tools.py            # Financial research tools (quotes, metrics, news via yfinance)
-├── main.py             # User-friendly CLI runner (interactive REPL & single-shot queries)
-├── __init__.py         # Package entry point exposing root_agent
-├── requirements.txt    # Dependencies (google-adk, yfinance, python-dotenv)
-├── .env.example        # Environment variable template
-├── .env                # Local environment file for GOOGLE_API_KEY
-├── .gitignore          # Git exclusion rules
-└── README.md           # Documentation
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Configure Your API Key
-
-Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
-
-Set it in `.env`:
 ```bash
-echo "GOOGLE_API_KEY=your_gemini_api_key_here" > .env
+# from the repo root
+make install-backend
+make test-backend           # offline: scripted fake LLMs + mocked APIs, coverage gate 80%
+make run-backend-offline    # uvicorn on :8080 with deterministic fixtures (agents still call Vertex AI)
+make adk-web                # ADK dev UI over the same agent tree
+make eval-all               # golden dataset + Gemini judge (needs `gcloud auth application-default login`)
 ```
 
-Or export it in your terminal:
-```bash
-export GOOGLE_API_KEY="your_gemini_api_key_here"
-```
+## Package map
 
-### 2. Run the Agent
+| Module | Responsibility |
+| --- | --- |
+| `analyst/agents` | Root Orchestrator, Data Gatherer, SEC Filing Parser, Strategy Evaluator and Financial Analyst (ADK); input guardrail callback |
+| `analyst/tools` | ADK tool functions, the evidence/citation registry, `safe_tool`, retry/backoff and TTL cache |
+| `analyst/data` | Provider adapters (yfinance, Yahoo RSS, Alpha Vantage, SEC EDGAR), Pydantic schemas, offline fixtures, Secret Manager |
+| `analyst/strategies` | Pure indicator math and the deterministic Momentum/Value/Swing/Income engine |
+| `analyst/guardrails` | Prompt-injection and trade screen, Model Armor client, numeric fact checker |
+| `analyst/prompts/v1` | Versioned prompts (`PROMPT_VERSION`) |
+| `analyst/services` | Turn orchestration and SSE events, Firestore report store, BigQuery usage and audit sink |
+| `analyst/api` | FastAPI routes, IAP JWT verification, request and response models |
+| `analyst/telemetry.py` | OpenTelemetry tracer provider (Cloud Trace) and Cloud Logging JSON formatter |
 
-#### Option A: Direct Python Runner (`main.py`)
+## Configuration
 
-Interactive conversation mode:
-```bash
-python main.py
-```
+All settings are environment variables. They're listed in [docs/API_CONTRACT.md](../docs/API_CONTRACT.md#backend-runtime-configuration-environment-variables) and in [.env.example](.env.example).
 
-Single-query mode:
-```bash
-python main.py "Give me an investment analysis of NVDA"
-```
-
-#### Option B: Google ADK CLI (`adk run`)
-
-> **Note on Agent Invocation**: Run the agent directly using `python main.py` or through Google ADK.
-
-From the parent folder:
-```bash
-adk run investment_analyst "Analyze Apple (AAPL) stock and provide bull/bear cases"
-```
-
-Or start the ADK interactive Web UI:
-```bash
-adk web /home/admin_
-```
-
----
-
-## 🛠️ Tools Included
-
-| Tool | Description |
-|------|-------------|
-| `get_stock_quote(ticker)` | Fetches current price, currency, market cap, P/E ratios, 52-week high/low, and trading volume. |
-| `get_financial_metrics(ticker)` | Fetches revenue, YoY revenue growth, profit margins, EPS, debt-to-equity, ROE, free cash flow, and Wall Street price targets. |
-| `get_company_news(ticker, limit)` | Fetches latest headlines, publishers, and publication timestamps. |
-
----
-
-## 📋 Research Output Format
-
-When analyzing a stock, the agent provides:
-1. **Executive Snapshot**: Ticker, Company Name, Current Price, Market Cap, 52-Week Range, P/E.
-2. **Financial Health & Valuation**: Revenue growth, profit margins, balance sheet health (debt-to-equity), and cash flow.
-3. **Bull Case**: Key growth drivers, competitive advantages, and upside catalysts.
-4. **Bear Case**: Risks, valuation headwinds, debt load, and competitive threats.
-5. **Analyst Consensus & Conclusion**: Price targets, buy/hold/sell consensus, and a balanced bottom line.
-
----
-
-## ⚠️ Disclaimer
-
-*This agent and its outputs are for educational and informational purposes only. Nothing generated constitutes financial, legal, or investment advice.*
+To add a new prompt version, copy `analyst/prompts/v1` to `analyst/prompts/v2`, edit it, and deploy with `PROMPT_VERSION=v2`. Each report stores the content hash of the prompts that produced it.

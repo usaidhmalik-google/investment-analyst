@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Add investment-analyst package to sys.path
-package_dir = Path(__file__).resolve().parent.parent / "investment-analyst"
+package_dir = Path(__file__).resolve().parent.parent / "legacy" / "aegis-agent"
 if str(package_dir) not in sys.path:
     sys.path.insert(0, str(package_dir))
 

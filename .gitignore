@@ -71,6 +71,12 @@ htmlcov/
 .adk/
 traces/
 
+# Local toolchains (node, terraform) & frontend build output
+.tools/
+node_modules/
+frontend/dist/
+.ruff_cache/
+
 # Operating System & IDE Files
 .DS_Store
 Thumbs.db
