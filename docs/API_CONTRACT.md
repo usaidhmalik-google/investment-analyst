@@ -120,7 +120,7 @@ Server-Sent Events over a `fetch` response (`event: <type>\ndata: <json>\n\n`):
 | --------------------------- | -------------------------- | ------------------------------------------------------- |
 | `PORT`                      | `8080`                     | HTTP port                                               |
 | `GOOGLE_CLOUD_PROJECT`      | –                          | GCP project                                             |
-| `GOOGLE_CLOUD_LOCATION`     | `us-central1`              | Vertex AI region                                        |
+| `GOOGLE_CLOUD_LOCATION`     | `global` (prod)            | Vertex AI endpoint for Gemini (3.x needs `global`)      |
 | `GOOGLE_GENAI_USE_VERTEXAI` | `TRUE`                     | Route Gemini calls through Vertex AI                    |
 | `ANALYST_ROUTER_MODEL`      | `gemini-3.5-flash`         | Orchestrator + gatherer agents                          |
 | `ANALYST_REASONING_MODEL`   | `gemini-2.5-pro`           | Financial Analyst synthesis                             |

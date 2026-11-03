@@ -34,7 +34,7 @@ def build_session_service(settings: Settings) -> BaseSessionService:
 
         return VertexAiSessionService(
             project=settings.google_cloud_project,
-            location=settings.google_cloud_location,
+            location=settings.agent_engine_location,
             agent_engine_id=settings.agent_engine_id,
         )
     raise SessionConfigError(f"Unknown SESSION_BACKEND: {backend}")  # pragma: no cover - guarded by Literal

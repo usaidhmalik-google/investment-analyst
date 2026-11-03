@@ -72,6 +72,9 @@ graph TD
 └── terraform/*.tf, aegis-service/, tests/   # Project Aegis gateway + benchmark harness (unchanged)
 ```
 
+> [!IMPORTANT]
+> **Running against real Gemini / GCP for the first time?** Start with [docs/FIRST_LIVE_RUN.md](docs/FIRST_LIVE_RUN.md) and `investment-analyst/scripts/preflight.py`. Coding agents: read [AGENTS.md](AGENTS.md) first.
+
 ## Quick start (local)
 
 ```bash

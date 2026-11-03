@@ -71,6 +71,10 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "GOOGLE_CLOUD_LOCATION"
+        value = var.vertex_ai_location
+      }
+      env {
+        name  = "AGENT_ENGINE_LOCATION"
         value = var.region
       }
       env {

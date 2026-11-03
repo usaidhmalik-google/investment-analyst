@@ -18,7 +18,8 @@ class Settings(BaseSettings):
 
     # --- GCP / Vertex AI -------------------------------------------------------
     google_cloud_project: str | None = Field(default=None, alias="GOOGLE_CLOUD_PROJECT")
-    google_cloud_location: str = Field(default="us-central1", alias="GOOGLE_CLOUD_LOCATION")
+    # Vertex AI endpoint for Gemini calls; Gemini 3.x is served from `global`.
+    google_cloud_location: str = Field(default="global", alias="GOOGLE_CLOUD_LOCATION")
 
     # --- Models ---------------------------------------------------------------
     router_model: str = Field(default="gemini-3.5-flash", alias="ANALYST_ROUTER_MODEL")
@@ -48,6 +49,8 @@ class Settings(BaseSettings):
     session_backend: Literal["memory", "database", "vertex"] = Field(default="memory", alias="SESSION_BACKEND")
     session_db_url: str | None = Field(default=None, alias="SESSION_DB_URL")
     agent_engine_id: str | None = Field(default=None, alias="AGENT_ENGINE_ID")
+    # Agent Engine is regional, while Gemini 3.x models are served from the `global` endpoint.
+    agent_engine_location: str = Field(default="us-central1", alias="AGENT_ENGINE_LOCATION")
 
     # --- Persistence & telemetry ----------------------------------------------
     persistence_backend: Literal["memory", "firestore"] = Field(default="memory", alias="PERSISTENCE_BACKEND")

@@ -159,6 +159,12 @@ variable "prompt_version" {
   default     = "v1"
 }
 
+variable "vertex_ai_location" {
+  description = "Vertex AI endpoint for Gemini calls. Gemini 3.x models are served from `global`; set a region only if every configured model is available there."
+  type        = string
+  default     = "global"
+}
+
 variable "agent_engine_id" {
   description = <<-EOT
     Vertex AI Agent Engine (reasoning engine) resource ID used for managed ADK
