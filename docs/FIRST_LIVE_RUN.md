@@ -86,7 +86,7 @@ Follow `terraform/analyst/README.md`. The things that will bite:
 ## 5. Post-deploy smoke test
 
 ```bash
-URL=$(cd terraform/analyst && terraform output -raw frontend_uri)
+URL=$(cd terraform/analyst && terraform output -raw frontend_url)
 # In a browser (IAP login): ask "Give me a brief on NVIDIA's performance this week and the latest news on their new chips"
 # Check: streamed thoughts -> brief with [Q:NVDA]-style chips -> Sources panel -> fact-check badge -> thumbs up works
 gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.message="usage"' --limit 5 --format json
