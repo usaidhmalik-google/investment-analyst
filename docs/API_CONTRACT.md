@@ -6,13 +6,17 @@ frontend (`frontend/`), and the infrastructure (`terraform/analyst/`,
 
 ## HTTP API (FastAPI backend, listens on `$PORT`, default `8080`)
 
-| Method | Path               | Body                         | Response                    |
-| ------ | ------------------ | ---------------------------- | --------------------------- |
-| GET    | `/healthz`         | –                            | `{"status": "ok"}`          |
-| GET    | `/api/config`      | –                            | `ConfigResponse`            |
-| POST   | `/api/chat`        | `ChatRequest`                | `ChatResponse`              |
-| POST   | `/api/chat/stream` | `ChatRequest`                | `text/event-stream` (below) |
-| POST   | `/api/feedback`    | `FeedbackRequest`            | `{"status": "ok"}`          |
+All `/api/*` endpoints are also mounted under versioned `/api/v1/*` routes for forward-compatible API evolution. See [`docs/openapi.json`](openapi.json) for the machine-readable OpenAPI 3.1 specification.
+
+| Method | Path (and `/api/v1/*` alias) | Body                         | Response                    |
+| ------ | ---------------------------- | ---------------------------- | --------------------------- |
+| GET    | `/healthz`                   | –                            | `{"status": "ok"}`          |
+| GET    | `/api/config`                | –                            | `ConfigResponse`            |
+| GET    | `/api/metrics`               | –                            | Operational metrics, cache stats, circuit breakers & feature flags |
+| GET    | `/api/reports/{report_id}`   | –                            | Persisted report document (`404` if unknown) |
+| POST   | `/api/chat`                  | `ChatRequest`                | `ChatResponse`              |
+| POST   | `/api/chat/stream`           | `ChatRequest`                | `text/event-stream` (below) |
+| POST   | `/api/feedback`              | `FeedbackRequest`            | `{"status": "ok"}`          |
 
 ### ChatRequest
 
@@ -142,6 +146,12 @@ Server-Sent Events over a `fetch` response (`event: <type>\ndata: <json>\n\n`):
 | `IAP_AUDIENCE`              | –                          | Expected IAP JWT audience                               |
 | `MODEL_ARMOR_TEMPLATE`      | –                          | `projects/P/locations/L/templates/T` (optional)         |
 | `PROMPT_VERSION`            | `v1`                       | Versioned prompt set to load                            |
+| `ENABLE_DLP_REDACTION`      | `true`                     | Deterministic pre-LLM and pre-persistence PII/credential redaction |
+| `ENABLE_HYBRID_RAG`         | `true`                     | Hybrid BM25 + dense vector RRF search for SEC filings   |
+| `EXPERIMENT_ID`             | `default`                  | Experiment identifier recorded on reports & telemetry   |
+| `EXPERIMENT_VARIANT`        | `control`                  | Default experiment variant tag (`ChatRequest` can override) |
+| `WEBHOOK_TARGET_URL`        | –                          | Optional outbound HTTP webhook URL for `report.completed` / `guardrail.blocked` events |
+| `WEBHOOK_SECRET`            | –                          | HMAC-SHA256 signing secret (`X-Analyst-Signature`)      |
 | `ANALYST_OFFLINE_MODE`      | `false`                    | Use bundled fixtures instead of live market APIs (demo/CI only) |
 | `LOG_LEVEL`                 | `INFO`                     | Structured JSON log level                               |
 

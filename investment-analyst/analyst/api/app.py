@@ -167,6 +167,13 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
         )  # fmt: skip
         return {"status": "ok"}
 
+    @router.get("/reports/{report_id}")
+    async def get_report(report_id: str, svc: ServiceDep, _: UserDep) -> dict[str, Any]:
+        doc = await svc.store.get_report(report_id)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Unknown report_id")
+        return doc
+
     # Mount both unversioned (/api/*) and versioned (/api/v1/*) routes for API evolution & backward compatibility
     app.include_router(router, prefix="/api")
     app.include_router(router, prefix="/api/v1")

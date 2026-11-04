@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 EvidenceType = Literal["quote", "history", "metrics", "news", "sec_filing", "sec_financials", "strategy"]
 
@@ -175,7 +175,7 @@ class XbrlFinancials(BaseModel):
 
 class StrategySignal(BaseModel):
     ticker: str
-    strategy: Literal["momentum", "value", "swing", "income"]
+    strategy: str
     signal: str
     score: float
     max_score: float
@@ -183,3 +183,12 @@ class StrategySignal(BaseModel):
     rationale: list[str]
     source: str = "Strategy Engine"
     as_of: str
+
+    @field_validator("strategy")
+    @classmethod
+    def _validate_strategy(cls, v: str) -> str:
+        from ..strategies import engine
+
+        if not engine.is_registered_strategy(v):
+            raise ValueError(f"Unknown strategy {v!r}; must be one of {engine.list_registered_strategies()}")
+        return v

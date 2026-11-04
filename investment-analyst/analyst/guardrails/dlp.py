@@ -10,8 +10,8 @@ Carefully tuned so financial figures (dollar amounts, percentages, dates, CIKs, 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -54,9 +54,7 @@ class DLPScanResult:
 # --- Deterministic detectors ---
 
 # US SSN: XXX-XX-XXXX (excluding invalid prefixes 000, 666, 900-999 and SEC accession substrings)
-_SSN_RE = re.compile(
-    r"(?<![\d\-])(?!000|666|9\d\d)\d{3}-(?!00)\d{2}-(?!0000)\d{4}(?![\d\-])"
-)
+_SSN_RE = re.compile(r"(?<![\d\-])(?!000|666|9\d\d)\d{3}-(?!00)\d{2}-(?!0000)\d{4}(?![\d\-])")
 
 # API keys, Bearer tokens, Google API keys, OpenAI-style keys, GitHub PATs
 _SECRET_RE = re.compile(
@@ -65,14 +63,10 @@ _SECRET_RE = re.compile(
 )
 
 # Email addresses
-_EMAIL_RE = re.compile(
-    r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24}\b"
-)
+_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24}\b")
 
 # Explicit brokerage / bank account or routing numbers
-_ACCOUNT_RE = re.compile(
-    r"(?i)\b(?:account|acct|routing|iban)\s*(?:number|num|no|#)?\s*[:=#]?\s*[A-Z0-9\-]{8,22}\b"
-)
+_ACCOUNT_RE = re.compile(r"(?i)\b(?:account|acct|routing|iban)\s*(?:number|num|no|#)?\s*[:=#]?\s*[A-Z0-9\-]{8,22}\b")
 
 # North American / international phone numbers with explicit formatting
 # Avoids matching dates (YYYY-MM-DD) or SEC accession numbers (10-2-6 digits).
@@ -81,9 +75,7 @@ _PHONE_RE = re.compile(
 )
 
 # Candidate 13-to-19 digit payment card numbers (validated with Luhn checksum)
-_CARD_CANDIDATE_RE = re.compile(
-    r"(?<![\d\-])(?:\d{4}[\s\-]?){3}\d{1,7}(?![\d\-])"
-)
+_CARD_CANDIDATE_RE = re.compile(r"(?<![\d\-])(?:\d{4}[\s\-]?){3}\d{1,7}(?![\d\-])")
 
 
 def _passes_luhn(digits: str) -> bool:
@@ -150,15 +142,13 @@ def scan_and_redact(
         findings.append(
             DLPFinding(
                 category="CREDIT_CARD",
-                redacted_token="[REDACTED:CREDIT_CARD]",
+                redacted_token="[REDACTED:CREDIT_CARD]",  # noqa: S106
                 count=card_count,
             )
         )
 
     has_pii = len(findings) > 0
-    classification = (
-        DataClassification.RESTRICTED_PII_OR_CREDENTIAL if has_pii else default_classification
-    )
+    classification = DataClassification.RESTRICTED_PII_OR_CREDENTIAL if has_pii else default_classification
     return DLPScanResult(
         sanitized_text=sanitized,
         has_pii=has_pii,

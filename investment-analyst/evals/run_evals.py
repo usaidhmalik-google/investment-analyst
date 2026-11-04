@@ -19,17 +19,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections import Counter
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
+import itertools
 import json
 import math
 import os
-from pathlib import Path
 import re
 import statistics
 import sys
 import time
+from collections import Counter
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
@@ -93,8 +94,8 @@ def compute_rouge_and_bleu(candidate: str, reference: list[str] | str) -> dict[s
 
     # ROUGE-2
     if len(cand_tokens) >= 2 and len(ref_tokens) >= 2:
-        cand_2 = Counter(zip(cand_tokens[:-1], cand_tokens[1:], strict=True))
-        ref_2 = Counter(zip(ref_tokens[:-1], ref_tokens[1:], strict=True))
+        cand_2 = Counter(itertools.pairwise(cand_tokens))
+        ref_2 = Counter(itertools.pairwise(ref_tokens))
         overlap_2 = sum((cand_2 & ref_2).values())
         r2_p = overlap_2 / max(1, len(cand_tokens) - 1)
         r2_r = overlap_2 / max(1, len(ref_tokens) - 1)
@@ -325,9 +326,7 @@ def compare_with_baseline(
         base_ttft = float(baseline["ttft_p95_ms"])
         cur_ttft = float(current["ttft_p95_ms"])
         if base_ttft > 0 and (cur_ttft - base_ttft) / base_ttft > latency_tolerance_pct:
-            regressions.append(
-                f"latency regression in ttft_p95_ms: current {cur_ttft}ms > baseline {base_ttft}ms"
-            )
+            regressions.append(f"latency regression in ttft_p95_ms: current {cur_ttft}ms > baseline {base_ttft}ms")
     return regressions
 
 

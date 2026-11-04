@@ -11,14 +11,14 @@ Implements:
 
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import dataclass
 import hashlib
 import html
-from html.parser import HTMLParser
 import logging
 import math
 import re
+from collections import Counter
+from dataclasses import dataclass
+from html.parser import HTMLParser
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
@@ -358,9 +358,7 @@ class HybridFilingRetriever:
         self._doc_tokens: list[list[str]] = [tokenize(c.text) for c in self.chunks]
         self._doc_freqs: list[Counter[str]] = [Counter(toks) for toks in self._doc_tokens]
         self._doc_lens: list[int] = [len(toks) for toks in self._doc_tokens]
-        self._avgdl: float = (
-            sum(self._doc_lens) / len(self._doc_lens) if self._doc_lens else 1.0
-        )
+        self._avgdl: float = sum(self._doc_lens) / len(self._doc_lens) if self._doc_lens else 1.0
 
         df: Counter[str] = Counter()
         for freq in self._doc_freqs:
@@ -368,12 +366,9 @@ class HybridFilingRetriever:
                 df[term] += 1
         n_docs = len(self.chunks)
         self._idf: dict[str, float] = {
-            term: math.log(1.0 + (n_docs - freq + 0.5) / (freq + 0.5))
-            for term, freq in df.items()
+            term: math.log(1.0 + (n_docs - freq + 0.5) / (freq + 0.5)) for term, freq in df.items()
         }
-        self._vectors: list[list[float]] = (
-            self.embedder.embed([c.text for c in self.chunks]) if self.chunks else []
-        )
+        self._vectors: list[list[float]] = self.embedder.embed([c.text for c in self.chunks]) if self.chunks else []
 
     def _bm25_scores(self, query_tokens: list[str]) -> list[float]:
         scores: list[float] = []

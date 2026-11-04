@@ -17,6 +17,10 @@ The requirement → code map is in `README.md#design-traceability`.
 | `frontend/` | React 18 + TS + Tailwind (Vite), nginx container |
 | `terraform/analyst/` | all GCP infra for this app |
 | `docs/API_CONTRACT.md` | **binding** backend ↔ frontend ↔ infra contract |
+| `docs/CAPSTONE_RUBRIC_AND_READOUT.md` | Master FDE Capstone Rubric readout (Personas, CUJs, TCO/ROI, Q&A Defense Matrix, AI Harness, GCP Roadmap) |
+| `docs/ARCHITECTURE.md` | System architecture, sequence, data classification, circuit-breaker, and CI/CD diagrams |
+| `docs/ADR.md` | Architecture Decision Records (ADRs 001–008) |
+| `docs/OPERATIONS_RUNBOOK.md` | Day-2 operations, canary rollout/rollback, incident playbooks, and DR snapshot procedures |
 | `docs/FIRST_LIVE_RUN.md` | checklist for the first run against real Gemini / GCP |
 | `legacy/`, `aegis-service/`, `terraform/*.tf`, root `tests/` | old Project Aegis prototype — do not modify |
 
@@ -63,6 +67,9 @@ and `frontend/src/types.ts` together.
 | Client-chosen session ids (not supported by Vertex sessions; hijack risk) | Server always mints session ids. |
 | `pkill -f <pattern>` killed the agent's own shell (pattern was in its command line) | Kill by PID, never `pkill -f` with a pattern that appears in your own command. |
 | Tests passing with fake LLMs ≠ working with Gemini | After any agent/prompt change, run `make eval-quick`/`eval-all` against real Vertex AI. |
+| Aggressive DLP phone/SSN regexes matched substrings inside 18-digit SEC accession numbers (`0000320193-25-000079`) | Always guard numeric PII regexes with `(?<![\d\-])...(?![\d\-])` and Luhn validation (`guardrails/dlp.py`). |
+| Static `Literal["momentum", "value", "swing", "income"]` on `StrategySignal.strategy` rejected runtime-registered strategy plugins | Validate `StrategySignal.strategy` with a `@field_validator` delegating to `engine.is_registered_strategy(v)`. |
+| Calling `TestClient(app)` without a `with` block skipped FastAPI's `lifespan` hook so `app.state.service` was unset | Always use `with TestClient(app) as client:` when testing routes that resolve `app.state.service`. |
 
 **When you hit a new mistake, add a row here in the same change that fixes it.**
 

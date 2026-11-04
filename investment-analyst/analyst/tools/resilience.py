@@ -8,14 +8,14 @@ per provider with :class:`CircuitBreaker`.
 
 from __future__ import annotations
 
-from collections import OrderedDict
-from collections.abc import Callable, Hashable
-from dataclasses import dataclass
 import functools
 import logging
 import random
 import threading
 import time
+from collections import OrderedDict
+from collections.abc import Callable, Hashable
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 import httpx

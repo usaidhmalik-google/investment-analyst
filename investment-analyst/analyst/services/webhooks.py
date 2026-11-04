@@ -8,16 +8,16 @@ Pub/Sub bridges) to subscribe to ``report.completed``, ``guardrail.blocked``, an
 
 from __future__ import annotations
 
-from collections import defaultdict
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import UTC, datetime
 import hashlib
 import hmac
 import json
 import logging
-from typing import Any
 import uuid
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 from ..data import http
 
@@ -51,9 +51,7 @@ def sign_webhook_payload(secret: str, timestamp: str, body_bytes: bytes) -> str:
     return f"sha256={mac.hexdigest()}"
 
 
-def verify_webhook_signature(
-    secret: str, timestamp: str, body_bytes: bytes, signature_header: str
-) -> bool:
+def verify_webhook_signature(secret: str, timestamp: str, body_bytes: bytes, signature_header: str) -> bool:
     """Constant-time verification of an ``X-Analyst-Signature`` header."""
     expected = sign_webhook_payload(secret, timestamp, body_bytes)
     return hmac.compare_digest(expected, signature_header or "")
@@ -108,13 +106,9 @@ class WebhookDispatcher:
             "X-Analyst-Timestamp": event.timestamp,
         }
         if self.secret:
-            headers["X-Analyst-Signature"] = sign_webhook_payload(
-                self.secret, event.timestamp, body_bytes
-            )
+            headers["X-Analyst-Signature"] = sign_webhook_payload(self.secret, event.timestamp, body_bytes)
         try:
-            resp = http.get_client().post(
-                self.target_url, content=body_bytes, headers=headers, timeout=3.0
-            )
+            resp = http.get_client().post(self.target_url, content=body_bytes, headers=headers, timeout=3.0)
             resp.raise_for_status()
         except Exception:
             logger.warning(

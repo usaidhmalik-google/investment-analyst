@@ -353,9 +353,7 @@ class AnalystService:
         cost_usd = estimate_turn_cost_usd(response.usage.prompt_tokens, response.usage.output_tokens)
         self._metrics["prompt_tokens_total"] += response.usage.prompt_tokens
         self._metrics["output_tokens_total"] += response.usage.output_tokens
-        self._metrics["estimated_cost_usd_total"] = round(
-            self._metrics["estimated_cost_usd_total"] + cost_usd, 6
-        )
+        self._metrics["estimated_cost_usd_total"] = round(self._metrics["estimated_cost_usd_total"] + cost_usd, 6)
         scan = dlp_scan or dlp.scan_and_redact(request.message)
         experiment = {
             "id": self.settings.experiment_id,

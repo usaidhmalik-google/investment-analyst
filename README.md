@@ -66,6 +66,11 @@ graph TD
 ├── terraform/analyst/         # Cloud Run, IAP, IAM, Secret Manager, Firestore, BigQuery, AR, Cloud Build
 ├── cloudbuild.yaml            # CI/CD: lint -> tests (>=80% cov) -> build -> push -> deploy
 ├── docs/API_CONTRACT.md       # backend <-> frontend <-> infra contract
+├── docs/openapi.json          # machine-readable OpenAPI 3.1 specification
+├── docs/CAPSTONE_RUBRIC_AND_READOUT.md  # FDE Capstone Rubric readout (Personas, CUJs, TCO/ROI, Q&A Defense, AI Harness, Roadmap)
+├── docs/ARCHITECTURE.md       # C4, sequence, data classification, circuit-breaker, and CI/CD diagrams
+├── docs/ADR.md                # Architecture Decision Records (ADRs 001–008)
+├── docs/OPERATIONS_RUNBOOK.md # Day-2 operations, canary rollout/rollback, incident playbooks & DR
 ├── docs/PRR_READOUT.md        # Sprint 6 product readiness review
 ├── Makefile
 ├── legacy/                    # previous single-agent / Project Aegis prototype + README
