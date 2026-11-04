@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import TypeVar
 
 from ..config import get_settings
-from ..tools.resilience import DataProviderError, RetryPolicy, cached, call_with_retry
+from ..tools.resilience import DataProviderError, RetryPolicy, cached, call_with_retry, get_circuit_breaker
 from . import alpha_vantage, fixtures, sec_edgar, yahoo
 from .schemas import FilingList, FilingSection, FinancialMetrics, NewsFeed, PriceHistory, Quote, XbrlFinancials
 
@@ -34,7 +34,7 @@ def _chain(operation: str, providers: list[tuple[str, Callable[[], T]]]) -> T:
     errors: list[str] = []
     for name, fn in providers:
         try:
-            return fn()
+            return get_circuit_breaker(name).call(fn)
         except Exception as exc:  # noqa: BLE001 - try next provider
             logger.warning(
                 "provider failed; falling back", extra={"provider": name, "operation": operation, "error": repr(exc)}

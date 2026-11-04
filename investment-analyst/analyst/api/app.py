@@ -7,9 +7,9 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -122,7 +122,9 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/api/config", response_model=ConfigResponse)
+    router = APIRouter()
+
+    @router.get("/config", response_model=ConfigResponse)
     async def config(_: UserDep) -> ConfigResponse:
         return ConfigResponse(
             strategies=list(STRATEGIES),
@@ -131,14 +133,20 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
             prompt_version=settings.prompt_version,
         )
 
-    @app.post("/api/chat", response_model=ChatResponse)
+    @router.get("/metrics")
+    async def metrics(svc: ServiceDep, _: UserDep) -> dict[str, Any]:
+        if hasattr(svc, "metrics_snapshot"):
+            return svc.metrics_snapshot()
+        return {"counters": {}, "feature_flags": settings.feature_flags()}
+
+    @router.post("/chat", response_model=ChatResponse)
     async def chat(body: ChatRequest, svc: ServiceDep, user: UserDep) -> ChatResponse:
         try:
             return await svc.run(body, user)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    @app.post("/api/chat/stream")
+    @router.post("/chat/stream")
     async def chat_stream(body: ChatRequest, svc: ServiceDep, user: UserDep) -> StreamingResponse:
         return StreamingResponse(
             sse_with_heartbeat(svc, body, user, settings.sse_heartbeat_seconds),
@@ -146,7 +154,7 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
         )
 
-    @app.post("/api/feedback")
+    @router.post("/feedback")
     async def feedback(body: FeedbackRequest, svc: ServiceDep, user: UserDep) -> dict[str, str]:
         label = user.email or user.user_id
         try:
@@ -158,5 +166,9 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
             report_id=body.report_id, status="ok",
         )  # fmt: skip
         return {"status": "ok"}
+
+    # Mount both unversioned (/api/*) and versioned (/api/v1/*) routes for API evolution & backward compatibility
+    app.include_router(router, prefix="/api")
+    app.include_router(router, prefix="/api/v1")
 
     return app

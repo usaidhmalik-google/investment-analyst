@@ -25,15 +25,17 @@ from opentelemetry import trace
 
 from ..agents import FINANCIAL_ANALYST, ROOT_AGENT_NAME, STRATEGY_STATE_KEY, build_root_agent
 from ..api.schemas import ChatRequest, ChatResponse, Latency, ToolCall, Usage
-from ..config import Settings
+from ..config import Settings, estimate_turn_cost_usd
 from ..data.schemas import Citation
-from ..guardrails import injection, model_armor
+from ..guardrails import dlp, injection, model_armor
 from ..guardrails.fact_check import FactCheckResult, cited_ids, fact_check
 from ..prompts import prompt_fingerprint
 from ..tools.evidence import get_evidence
+from ..tools.resilience import cache_stats, circuit_breaker_snapshots
 from .report_store import ReportStore
 from .sessions import build_session_service
 from .telemetry_sink import TelemetrySink
+from .webhooks import WebhookDispatcher
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("analyst.service")
@@ -93,6 +95,30 @@ class AnalystService:
         self.runner = Runner(app_name=APP_NAME, agent=self.agent, session_service=self.session_service)
         self.prompt_lineage = {
             name: prompt_fingerprint(name, settings.prompt_version) for name in ("orchestrator", "financial_analyst")
+        }
+        self.webhooks = WebhookDispatcher(settings.webhook_target_url, settings.webhook_secret)
+        self._metrics: dict[str, Any] = {
+            "turns_total": 0,
+            "turns_ok": 0,
+            "turns_blocked": 0,
+            "turns_errored": 0,
+            "dlp_redactions": 0,
+            "prompt_tokens_total": 0,
+            "output_tokens_total": 0,
+            "estimated_cost_usd_total": 0.0,
+        }
+
+    def metrics_snapshot(self) -> dict[str, Any]:
+        """Return operational telemetry snapshot (counters, cache hit rate, circuit breakers, flags)."""
+        return {
+            "counters": dict(self._metrics),
+            "cache": cache_stats(),
+            "circuit_breakers": circuit_breaker_snapshots(),
+            "feature_flags": self.settings.feature_flags(),
+            "experiment": {
+                "id": self.settings.experiment_id,
+                "default_variant": self.settings.experiment_variant,
+            },
         }
 
     # ------------------------------------------------------------------ helpers
@@ -184,21 +210,36 @@ class AnalystService:
             span.set_attribute("analyst.session_id", session.id)
             span.set_attribute("analyst.report_id", report_id)
             span.set_attribute("analyst.strategy", request.strategy or "none")
+            self._metrics["turns_total"] += 1
+
+            dlp_scan = (
+                dlp.scan_and_redact(request.message)
+                if self.settings.enable_dlp_redaction
+                else dlp.DLPScanResult(
+                    sanitized_text=request.message,
+                    has_pii=False,
+                    classification=dlp.DataClassification.INTERNAL_ANALYST_WORK_PRODUCT,
+                )
+            )
+            if dlp_scan.has_pii:
+                self._metrics["dlp_redactions"] += 1
+                span.set_attribute("analyst.dlp_redacted", True)
 
             verdict = injection.screen_prompt(request.message)
             if not verdict.blocked:
-                verdict = await asyncio.to_thread(model_armor.screen_prompt, request.message)
+                verdict = await asyncio.to_thread(model_armor.screen_prompt, dlp_scan.sanitized_text)
             if verdict.blocked:
+                self._metrics["turns_blocked"] += 1
                 span.set_attribute("analyst.blocked", verdict.category or "blocked")
                 response = self._build_response(
                     report_id, session.id, verdict.message or "", {}, turn, blocked=True, reason=verdict.category
                 )
-                await self._finalize(request, user, response, status="blocked")
+                await self._finalize(request, user, response, status="blocked", dlp_scan=dlp_scan)
                 yield StreamEvent("final", response.model_dump(mode="json"))
                 return
 
             state_delta = {STRATEGY_STATE_KEY: request.strategy} if request.strategy else None
-            message = types.Content(role="user", parts=[types.Part.from_text(text=request.message)])
+            message = types.Content(role="user", parts=[types.Part.from_text(text=dlp_scan.sanitized_text)])
             run_config = RunConfig(streaming_mode=StreamingMode.SSE, max_llm_calls=30)
             try:
                 async with asyncio.timeout(self.settings.agent_timeout_seconds):
@@ -218,6 +259,7 @@ class AnalystService:
                 turn.error = f"Agent execution failed: {type(exc).__name__}"
 
             if turn.error and not turn.final_text:
+                self._metrics["turns_errored"] += 1
                 span.set_attribute("analyst.error", turn.error)
                 self.telemetry.record_audit(
                     user=user.email or user.user_id, action="chat", tickers=turn.tickers,
@@ -234,14 +276,19 @@ class AnalystService:
             blocked_reason = None
             response_verdict = await asyncio.to_thread(model_armor.screen_response, text)
             if response_verdict.blocked:
+                self._metrics["turns_blocked"] += 1
                 text, blocked_reason = response_verdict.message or "", response_verdict.category
+            else:
+                if self.settings.enable_dlp_redaction:
+                    text = dlp.scan_and_redact(text).sanitized_text
+                self._metrics["turns_ok"] += 1
             response = self._build_response(
                 report_id, session.id, text, evidence, turn,
                 blocked=response_verdict.blocked, reason=blocked_reason,
             )  # fmt: skip
             span.set_attribute("analyst.fact_check.accuracy", response.fact_check.accuracy)
             span.set_attribute("analyst.tools_called", len(response.tools_called))
-            await self._finalize(request, user, response, status="ok")
+            await self._finalize(request, user, response, status="ok", dlp_scan=dlp_scan)
             yield StreamEvent("final", response.model_dump(mode="json"))
 
     async def run(self, request: ChatRequest, user: UserIdentity) -> ChatResponse:
@@ -293,16 +340,34 @@ class AnalystService:
             block_reason=reason,
         )
 
-    async def _finalize(self, request: ChatRequest, user: UserIdentity, response: ChatResponse, status: str) -> None:
+    async def _finalize(
+        self,
+        request: ChatRequest,
+        user: UserIdentity,
+        response: ChatResponse,
+        status: str,
+        dlp_scan: dlp.DLPScanResult | None = None,
+    ) -> None:
         tickers = sorted({t.args.get("ticker", "").upper() for t in response.tools_called if t.args.get("ticker")})
         user_label = user.email or user.user_id
+        cost_usd = estimate_turn_cost_usd(response.usage.prompt_tokens, response.usage.output_tokens)
+        self._metrics["prompt_tokens_total"] += response.usage.prompt_tokens
+        self._metrics["output_tokens_total"] += response.usage.output_tokens
+        self._metrics["estimated_cost_usd_total"] = round(
+            self._metrics["estimated_cost_usd_total"] + cost_usd, 6
+        )
+        scan = dlp_scan or dlp.scan_and_redact(request.message)
+        experiment = {
+            "id": self.settings.experiment_id,
+            "variant": request.experiment_variant or self.settings.experiment_variant,
+        }
         try:
             await self.store.save_report(
                 {
                     "report_id": response.report_id,
                     "session_id": response.session_id,
                     "user": user_label,
-                    "prompt": request.message,
+                    "prompt": scan.sanitized_text,
                     "strategy": request.strategy,
                     "response_markdown": response.response,
                     "citations": [c.model_dump() for c in response.citations],
@@ -311,11 +376,15 @@ class AnalystService:
                     "tickers": tickers,
                     "latency": response.latency.model_dump(),
                     "usage": response.usage.model_dump(),
+                    "estimated_cost_usd": cost_usd,
                     "blocked": response.blocked,
                     "block_reason": response.block_reason,
                     "models": {"router": self.settings.router_model, "reasoning": self.settings.reasoning_model},
                     "prompt_version": self.settings.prompt_version,
                     "prompt_lineage": self.prompt_lineage,
+                    "data_classification": scan.classification,
+                    "dlp": scan.to_metadata(),
+                    "experiment": experiment,
                     "feedback": None,
                 }
             )
@@ -340,4 +409,18 @@ class AnalystService:
             session_id=response.session_id,
             report_id=response.report_id,
             status=status,
+        )
+        event_type = "guardrail.blocked" if response.blocked else "report.completed"
+        self.webhooks.emit(
+            event_type,
+            {
+                "report_id": response.report_id,
+                "session_id": response.session_id,
+                "tickers": tickers,
+                "blocked": response.blocked,
+                "block_reason": response.block_reason,
+                "fact_check_accuracy": response.fact_check.accuracy,
+                "estimated_cost_usd": cost_usd,
+                "experiment": experiment,
+            },
         )

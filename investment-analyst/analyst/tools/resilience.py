@@ -1,20 +1,21 @@
-"""Resilience primitives: exponential backoff with jitter, rate-limit handling, TTL caching.
+"""Resilience primitives: exponential backoff with jitter, rate-limit handling, TTL caching, circuit breakers.
 
 The TDD requires 99.9% successful fallback / backoff handling when external financial
 APIs rate-limit (HTTP 429) or time out. Every outbound data call in ``analyst.tools``
-goes through :func:`call_with_retry` and is memoised with :class:`TTLCache`.
+goes through :func:`call_with_retry`, is memoised with :class:`TTLCache`, and is isolated
+per provider with :class:`CircuitBreaker`.
 """
 
 from __future__ import annotations
 
+from collections import OrderedDict
+from collections.abc import Callable, Hashable
+from dataclasses import dataclass
 import functools
 import logging
 import random
 import threading
 import time
-from collections import OrderedDict
-from collections.abc import Callable, Hashable
-from dataclasses import dataclass
 from typing import Any, TypeVar
 
 import httpx
@@ -36,6 +37,138 @@ class RateLimitedError(DataProviderError):
     def __init__(self, message: str, retry_after: float | None = None):
         super().__init__(message)
         self.retry_after = retry_after
+
+
+class CircuitBreakerOpenError(DataProviderError):
+    """Raised when a call is rejected because the provider circuit breaker is OPEN."""
+
+    def __init__(self, name: str, retry_after: float) -> None:
+        super().__init__(f"Circuit breaker '{name}' is OPEN (retry after {retry_after:.1f}s)")
+        self.breaker_name = name
+        self.retry_after = retry_after
+
+
+@dataclass
+class CircuitBreaker:
+    """Thread-safe three-state circuit breaker (CLOSED -> OPEN -> HALF_OPEN)."""
+
+    name: str
+    failure_threshold: int = 3
+    recovery_timeout: float = 30.0
+    clock: Callable[[], float] = time.monotonic
+
+    def __post_init__(self) -> None:
+        self._state: str = "CLOSED"
+        self._failure_count: int = 0
+        self._opened_at: float = 0.0
+        self._last_error: str | None = None
+        self._total_trips: int = 0
+        self._lock = threading.Lock()
+
+    @property
+    def state(self) -> str:
+        with self._lock:
+            self._refresh_state_unlocked()
+            return self._state
+
+    def _refresh_state_unlocked(self) -> None:
+        if self._state == "OPEN":
+            elapsed = self.clock() - self._opened_at
+            if elapsed >= self.recovery_timeout:
+                self._state = "HALF_OPEN"
+
+    def allow_request(self) -> bool:
+        with self._lock:
+            self._refresh_state_unlocked()
+            return self._state in ("CLOSED", "HALF_OPEN")
+
+    def record_success(self) -> None:
+        with self._lock:
+            self._failure_count = 0
+            self._state = "CLOSED"
+            self._last_error = None
+
+    def record_failure(self, exc: BaseException | None = None) -> None:
+        with self._lock:
+            self._failure_count += 1
+            if exc is not None:
+                self._last_error = f"{type(exc).__name__}: {exc}"
+            if self._state == "HALF_OPEN" or self._failure_count >= self.failure_threshold:
+                if self._state != "OPEN":
+                    self._total_trips += 1
+                self._state = "OPEN"
+                self._opened_at = self.clock()
+
+    def call(self, fn: Callable[[], T]) -> T:
+        with self._lock:
+            self._refresh_state_unlocked()
+            if self._state == "OPEN":
+                retry_after = max(0.0, self.recovery_timeout - (self.clock() - self._opened_at))
+                raise CircuitBreakerOpenError(self.name, retry_after)
+        try:
+            result = fn()
+        except Exception as exc:
+            self.record_failure(exc)
+            raise
+        self.record_success()
+        return result
+
+    def reset(self) -> None:
+        with self._lock:
+            self._state = "CLOSED"
+            self._failure_count = 0
+            self._opened_at = 0.0
+            self._last_error = None
+            self._total_trips = 0
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            self._refresh_state_unlocked()
+            return {
+                "name": self.name,
+                "state": self._state,
+                "failure_count": self._failure_count,
+                "failure_threshold": self.failure_threshold,
+                "recovery_timeout_seconds": self.recovery_timeout,
+                "total_trips": self._total_trips,
+                "last_error": self._last_error,
+            }
+
+
+_BREAKERS: dict[str, CircuitBreaker] = {}
+_BREAKERS_LOCK = threading.Lock()
+
+
+def get_circuit_breaker(
+    name: str,
+    *,
+    failure_threshold: int = 3,
+    recovery_timeout: float = 30.0,
+) -> CircuitBreaker:
+    """Return or create a named ``CircuitBreaker``."""
+    with _BREAKERS_LOCK:
+        breaker = _BREAKERS.get(name)
+        if breaker is None:
+            breaker = CircuitBreaker(
+                name=name,
+                failure_threshold=failure_threshold,
+                recovery_timeout=recovery_timeout,
+            )
+            _BREAKERS[name] = breaker
+        return breaker
+
+
+def circuit_breaker_snapshots() -> dict[str, dict[str, Any]]:
+    with _BREAKERS_LOCK:
+        items = list(_BREAKERS.items())
+    return {name: breaker.snapshot() for name, breaker in items}
+
+
+def reset_all_circuit_breakers() -> None:
+    with _BREAKERS_LOCK:
+        breakers = list(_BREAKERS.values())
+    for breaker in breakers:
+        breaker.reset()
 
 
 @dataclass(frozen=True)
@@ -184,7 +317,23 @@ def cached(ttl_getter: Callable[[], float], maxsize: int = 512) -> Callable[[Cal
     return decorator
 
 
+def cache_stats() -> dict[str, Any]:
+    """Return aggregate hit/miss/size stats across all registered TTLCaches."""
+    total_hits = sum(c.hits for c in _ALL_CACHES)
+    total_misses = sum(c.misses for c in _ALL_CACHES)
+    total_entries = sum(len(c) for c in _ALL_CACHES)
+    total_lookups = total_hits + total_misses
+    return {
+        "caches_registered": len(_ALL_CACHES),
+        "total_entries": total_entries,
+        "total_hits": total_hits,
+        "total_misses": total_misses,
+        "hit_rate": round(total_hits / total_lookups, 4) if total_lookups else 0.0,
+    }
+
+
 def clear_all_caches() -> None:
-    """Reset every registered cache (used by tests)."""
+    """Reset every registered cache and circuit breaker (used by tests)."""
     for cache in _ALL_CACHES:
         cache.clear()
+    reset_all_circuit_breakers()

@@ -70,6 +70,47 @@ class Settings(BaseSettings):
     # --- Prompts ---------------------------------------------------------------
     prompt_version: str = Field(default="v1", alias="PROMPT_VERSION")
 
+    # --- Feature flags, experimentation & extensibility ------------------------
+    enable_dlp_redaction: bool = Field(default=True, alias="ENABLE_DLP_REDACTION")
+    enable_hybrid_rag: bool = Field(default=True, alias="ENABLE_HYBRID_RAG")
+    experiment_id: str = Field(default="exp-model-tiering-v1", alias="EXPERIMENT_ID")
+    experiment_variant: str = Field(default="control", alias="EXPERIMENT_VARIANT")
+    webhook_target_url: str = Field(default="", alias="WEBHOOK_TARGET_URL")
+    webhook_secret: str = Field(default="", alias="WEBHOOK_SECRET")
+
+    def feature_flags(self) -> dict[str, bool]:
+        return {
+            "dlp_redaction": self.enable_dlp_redaction,
+            "hybrid_rag": self.enable_hybrid_rag,
+            "offline_mode": self.offline_mode,
+            "cloud_trace": self.enable_cloud_trace,
+            "model_armor": bool(self.model_armor_template),
+        }
+
+
+# Vertex AI published list pricing (USD per 1M tokens)
+FLASH_INPUT_USD_PER_1M = 0.15
+FLASH_OUTPUT_USD_PER_1M = 0.60
+PRO_INPUT_USD_PER_1M = 1.25
+PRO_OUTPUT_USD_PER_1M = 10.00
+
+
+def estimate_turn_cost_usd(
+    prompt_tokens: int,
+    output_tokens: int,
+    *,
+    pro_share: float = 0.35,
+) -> float:
+    """Estimate turn cost in USD using the tiered Flash (router/specialists) + Pro (analyst) blend."""
+    p_tok = max(0, int(prompt_tokens))
+    o_tok = max(0, int(output_tokens))
+    pro_w = max(0.0, min(1.0, float(pro_share)))
+    flash_w = 1.0 - pro_w
+    blended_in = flash_w * FLASH_INPUT_USD_PER_1M + pro_w * PRO_INPUT_USD_PER_1M
+    blended_out = flash_w * FLASH_OUTPUT_USD_PER_1M + pro_w * PRO_OUTPUT_USD_PER_1M
+    cost = (p_tok * blended_in + o_tok * blended_out) / 1_000_000.0
+    return round(cost, 6)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -30,10 +30,12 @@ def evaluate_strategy(ticker: str, strategy: str, tool_context: ToolContext | No
         The signal, score, indicator values and rule-by-rule rationale; cite as ``[S:TICKER:strategy]``.
     """
     strategy = strategy.strip().lower()
-    if strategy not in STRATEGIES:
+    if strategy not in STRATEGIES and not engine.is_registered_strategy(strategy):
         raise ValueError(f"strategy must be one of {STRATEGIES}")
     symbol = market.normalize_ticker(ticker)
-    if strategy in ("momentum", "swing"):
+    if strategy not in STRATEGIES:
+        signal = engine.run_registered_strategy(strategy, symbol)
+    elif strategy in ("momentum", "swing"):
         history = market.get_history(symbol, "1y")
         as_of = history.as_of
         signal = (

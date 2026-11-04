@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     session_id: str | None = Field(default=None, max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
     strategy: StrategyName | None = None
+    experiment_variant: str | None = Field(default=None, max_length=64)
 
     @field_validator("message")
     @classmethod

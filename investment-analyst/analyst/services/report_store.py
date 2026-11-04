@@ -49,6 +49,20 @@ class InMemoryReportStore:
     async def get_report(self, report_id: str) -> dict[str, Any] | None:
         return self.reports.get(report_id)
 
+    async def export_snapshot(self) -> list[dict[str, Any]]:
+        """Export all persisted reports for disaster-recovery backup verification."""
+        return [dict(doc) for doc in self.reports.values()]
+
+    async def restore_snapshot(self, reports: list[dict[str, Any]]) -> int:
+        """Restore reports from a backup snapshot; returns the number of restored documents."""
+        restored = 0
+        for doc in reports:
+            rid = doc.get("report_id")
+            if rid:
+                self.reports[str(rid)] = {**doc, "created_at": doc.get("created_at") or _now()}
+                restored += 1
+        return restored
+
 
 class FirestoreReportStore:
     """Firestore-backed store (collection ``FIRESTORE_COLLECTION``, one document per report)."""
@@ -75,6 +89,15 @@ class FirestoreReportStore:
     async def get_report(self, report_id: str) -> dict[str, Any] | None:
         snapshot = await asyncio.to_thread(self._collection.document(report_id).get)
         return snapshot.to_dict() if snapshot.exists else None
+
+    async def restore_snapshot(self, reports: list[dict[str, Any]]) -> int:
+        """Restore reports into Firestore from a DR snapshot."""
+        restored = 0
+        for doc in reports:
+            if doc.get("report_id"):
+                await self.save_report(doc)
+                restored += 1
+        return restored
 
 
 def build_report_store(settings: Settings) -> ReportStore:

@@ -6,7 +6,7 @@ from typing import Any
 
 from google.adk.tools.tool_context import ToolContext
 
-from ..data import market
+from ..data import market, rag
 from .evidence import dump, record_evidence, safe_tool
 
 ALLOWED_FORMS = ("10-K", "10-Q", "8-K", "DEF 14A", "4", "13F-HR")
@@ -115,4 +115,89 @@ def get_sec_reported_financials(ticker: str, tool_context: ToolContext | None = 
     )
 
 
-SEC_FILING_TOOLS = [list_sec_filings, get_sec_filing_section, get_sec_reported_financials]
+@safe_tool
+def search_sec_filing(
+    ticker: str,
+    query: str,
+    form_type: str = "10-K",
+    section: str = "risk_factors",
+    top_k: int = 3,
+    chunk_size: int = 800,
+    chunk_overlap: int = 150,
+    tool_context: ToolContext | None = None,
+) -> dict[str, Any]:
+    """Run hybrid BM25 + dense-vector Reciprocal Rank Fusion (RRF) search over an SEC filing section.
+
+    Args:
+        ticker: Stock ticker symbol.
+        query: Search query (e.g., "supply chain Taiwan foundry concentration" or "gross margin drivers").
+        form_type: "10-K", "10-Q" or "8-K".
+        section: Section to index and search ("risk_factors", "mdna", "business", "legal_proceedings",
+            "market_risk", "financial_statements").
+        top_k: Number of top-ranked chunks to return (1-10).
+        chunk_size: Target character size per chunk (default 800).
+        chunk_overlap: Character overlap between adjacent chunks (default 150).
+
+    Returns:
+        Top-ranked grounded chunks with BM25, dense cosine, and RRF scores, recorded under
+        citation ``[SEC:TICKER:FORM:ACCESSION]``.
+    """
+    form = form_type.upper()
+    if form not in ("10-K", "10-Q", "8-K"):
+        raise ValueError("form_type must be 10-K, 10-Q or 8-K")
+    if section not in SECTION_CHOICES:
+        raise ValueError(f"section must be one of {SECTION_CHOICES}")
+    clean_query = (query or "").strip()
+    if not clean_query:
+        raise ValueError("query must not be empty")
+
+    sec = market.get_filing_section(ticker, form, section, None, 15000)
+    chunks = rag.chunk_filing_section(
+        sec.text,
+        ticker=sec.ticker,
+        form=sec.form,
+        section=sec.section,
+        accession_number=sec.accession_number,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
+    retriever = rag.HybridFilingRetriever(chunks)
+    hits = retriever.search(clean_query, top_k=max(1, min(int(top_k), 10)))
+    matched_chunks = [
+        {
+            "chunk_id": h.chunk.chunk_id,
+            "chunk_index": h.chunk.chunk_index,
+            "start_char": h.chunk.start_char,
+            "end_char": h.chunk.end_char,
+            "rrf_score": h.rrf_score,
+            "bm25_score": h.bm25_score,
+            "dense_score": h.dense_score,
+            "text": h.chunk.text,
+        }
+        for h in hits
+    ]
+    payload = {
+        "ticker": sec.ticker,
+        "form": sec.form,
+        "accession_number": sec.accession_number,
+        "filing_date": sec.filing_date,
+        "section": sec.section,
+        "section_title": sec.section_title,
+        "query": clean_query,
+        "total_chunks": len(chunks),
+        "matches": matched_chunks,
+        "url": sec.url,
+    }
+    return record_evidence(
+        tool_context,
+        citation_id=f"SEC:{sec.ticker}:{sec.form}:{sec.accession_number}",
+        type="sec_filing",
+        title=f"{sec.ticker} {sec.form} ({sec.filing_date}) — {sec.section_title} [RAG: {clean_query}]",
+        source=sec.source,
+        url=sec.url,
+        as_of=sec.filing_date,
+        data=payload,
+    )
+
+
+SEC_FILING_TOOLS = [list_sec_filings, get_sec_filing_section, get_sec_reported_financials, search_sec_filing]

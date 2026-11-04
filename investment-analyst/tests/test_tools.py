@@ -21,6 +21,7 @@ from analyst.tools.sec_tools import (
     get_sec_filing_section,
     get_sec_reported_financials,
     list_sec_filings,
+    search_sec_filing,
 )
 from analyst.tools.strategy_tools import STRATEGY_TOOLS, evaluate_strategy
 
@@ -180,7 +181,12 @@ class TestMarketTools:
 
 class TestSecTools:
     def test_registry(self):
-        assert [list_sec_filings, get_sec_filing_section, get_sec_reported_financials] == SEC_FILING_TOOLS
+        assert [
+            list_sec_filings,
+            get_sec_filing_section,
+            get_sec_reported_financials,
+            search_sec_filing,
+        ] == SEC_FILING_TOOLS
 
     def test_list_defaults(self, tool_context):
         out = list_sec_filings("nvda", tool_context=tool_context)

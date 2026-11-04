@@ -8,12 +8,65 @@ Thresholds are explicit constants documented in the rationale returned to the LL
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from ..data.schemas import FinancialMetrics, PriceBar, Quote, StrategySignal
 from . import indicators as ind
 
 INSUFFICIENT = "INSUFFICIENT_DATA"
+
+
+@dataclass(frozen=True)
+class StrategyPlugin:
+    """Plugin descriptor allowing custom strategies to be registered without modifying core code."""
+
+    name: str
+    runner: Callable[[str], StrategySignal]
+    description: str = ""
+
+
+_CUSTOM_STRATEGIES: dict[str, StrategyPlugin] = {}
+
+
+def register_strategy(
+    name: str,
+    runner: Callable[[str], StrategySignal],
+    *,
+    description: str = "",
+) -> StrategyPlugin:
+    """Register a custom strategy evaluator plugin keyed by normalized strategy name."""
+    key = (name or "").strip().lower()
+    if not key or not key.replace("_", "").isalnum():
+        raise ValueError(f"Invalid strategy plugin name: {name!r}")
+    plugin = StrategyPlugin(name=key, runner=runner, description=description)
+    _CUSTOM_STRATEGIES[key] = plugin
+    return plugin
+
+
+def unregister_strategy(name: str) -> bool:
+    """Remove a previously registered custom strategy plugin."""
+    key = (name or "").strip().lower()
+    return _CUSTOM_STRATEGIES.pop(key, None) is not None
+
+
+def is_registered_strategy(name: str) -> bool:
+    key = (name or "").strip().lower()
+    return key in ("momentum", "value", "swing", "income") or key in _CUSTOM_STRATEGIES
+
+
+def list_registered_strategies() -> list[str]:
+    base = ["momentum", "value", "swing", "income"]
+    extras = sorted(k for k in _CUSTOM_STRATEGIES if k not in base)
+    return base + extras
+
+
+def run_registered_strategy(name: str, ticker: str) -> StrategySignal:
+    key = (name or "").strip().lower()
+    plugin = _CUSTOM_STRATEGIES.get(key)
+    if plugin is None:
+        raise KeyError(f"Custom strategy {name!r} is not registered")
+    return plugin.runner(ticker)
 
 
 def _r(value: float | None, digits: int = 2) -> float | None:
