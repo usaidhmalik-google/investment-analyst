@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Composer } from './components/Composer';
 import { Disclaimer } from './components/Disclaimer';
 import { Header } from './components/Header';
-import { EditIcon } from './components/icons';
 import { MessageList } from './components/MessageList';
 import { useChat } from './state/useChat';
 import { useConfig, useTheme } from './state/useConfig';
-import { EXAMPLE_PROMPTS } from './types';
 
 export default function App() {
   const config = useConfig();
@@ -39,8 +37,12 @@ export default function App() {
         canReset={messages.length > 0}
       />
 
-      <div className="ui-workspace">
-        <aside id="composer" className="ui-sidebar" aria-label="Research mandate & controls">
+      <div className="ui-shell">
+        <main className="ui-canvas">
+          <MessageList messages={messages} onExample={onExample} />
+        </main>
+
+        <div id="composer" className="ui-composer-dock">
           <Composer
             onSend={(m, s) => void send(m, s)}
             onStop={stop}
@@ -48,33 +50,10 @@ export default function App() {
             strategies={config?.strategies}
             draft={draft}
           />
-
-          <div className="ui-card">
-            <span className="ui-eyebrow">Standard Research Mandates</span>
-            <div className="ui-stack">
-              {EXAMPLE_PROMPTS.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => onExample(item.prompt)}
-                  className="ui-btn"
-                  title={item.prompt}
-                >
-                  <EditIcon />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <footer className="ui-card">
+          <footer style={{ marginTop: '10px', textAlign: 'center' }}>
             <Disclaimer />
           </footer>
-        </aside>
-
-        <main className="ui-canvas">
-          <MessageList messages={messages} onExample={onExample} />
-        </main>
+        </div>
       </div>
     </>
   );

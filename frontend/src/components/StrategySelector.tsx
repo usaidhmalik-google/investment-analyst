@@ -27,9 +27,9 @@ export function StrategySelector({ value, onChange, available, disabled }: Props
   const options: Array<Strategy | null> = [null, ...list];
 
   return (
-    <fieldset className="ui-stack" disabled={disabled} style={{ border: 'none' }}>
-      <legend className="ui-eyebrow">Strategy Lens</legend>
-      <div className="ui-row">
+    <fieldset className="ui-row" disabled={disabled} style={{ border: 'none' }}>
+      <legend className="sr-only">Investment strategy lens</legend>
+      <div className="ui-segmented">
         {options.map((opt) => {
           const key = opt ?? 'none';
           const checked = value === opt;
@@ -37,7 +37,7 @@ export function StrategySelector({ value, onChange, available, disabled }: Props
             <label
               key={key}
               title={DESCRIPTIONS[key]}
-              className={`ui-btn ${checked ? 'ui-btn--primary' : ''}`}
+              className={`ui-btn ${checked ? 'is-active' : ''}`}
             >
               <input
                 type="radio"

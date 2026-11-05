@@ -29,7 +29,7 @@ export function CitationChip({ id, entry, onClick }: ChipProps) {
       title={entry ? `${entry.citation.title} — ${entry.citation.source} [${id}]` : id}
       aria-label={label}
       data-citation-id={id}
-      className="ui-btn ui-cite-chip"
+      className="ui-cite-chip"
     >
       {entry ? entry.n : id}
     </button>
@@ -53,7 +53,11 @@ function MarkdownAnswerImpl({ content, citationIndex, onCitationClick, streaming
         );
       },
       table({ children }) {
-        return <table>{children}</table>;
+        return (
+          <div className="ui-table-wrap">
+            <table>{children}</table>
+          </div>
+        );
       },
       img() {
         return null;

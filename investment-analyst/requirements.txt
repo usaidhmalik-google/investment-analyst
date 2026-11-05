@@ -13,5 +13,5 @@ google-cloud-firestore>=2.16,<3
 google-cloud-bigquery>=3.25,<4
 opentelemetry-sdk>=1.27,<2
 opentelemetry-exporter-gcp-trace>=1.7,<2
-opentelemetry-instrumentation-fastapi>=0.48b0
+opentelemetry-instrumentation-fastapi>=0.65b0
 sqlalchemy[asyncio]>=2.0,<3   # SESSION_BACKEND=database (add asyncpg for Cloud SQL Postgres)

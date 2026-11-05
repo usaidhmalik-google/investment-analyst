@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { humanize } from '../lib/format';
 import { EXAMPLE_PROMPTS, type Message } from '../types';
 import { AssistantMessage } from './AssistantMessage';
-import { EditIcon } from './icons';
 
 interface Props {
   messages: Message[];
@@ -11,48 +10,32 @@ interface Props {
 
 function EmptyState({ onExample }: { onExample: (t: string) => void }) {
   return (
-    <section className="ui-sheet" aria-label="Research workbench overview">
-      <div className="ui-row--between">
-        <div>
-          <span className="ui-eyebrow">Institutional Equity Research Workbench</span>
-          <h2>Select a research mandate or enter a ticker in the left rail</h2>
-        </div>
-        <span className="ui-badge ui-badge--success">FINRA 2210 Fact-Check Guardrails Active</span>
+    <section className="ui-hero" aria-label="Research workbench overview">
+      <div>
+        <h2 className="ui-hero-title">What would you like to research?</h2>
+        <p className="ui-hero-subtitle">
+          Grounded equity briefs, live SEC 10-K/10-Q filings, and quantitative strategy evaluation—every figure
+          verified against primary source data.
+        </p>
       </div>
 
-      <p className="text-secondary">
-        Every research brief is synthesized by a 5-agent Google ADK hierarchy across live market feeds, SEC EDGAR XBRL
-        financials, and hybrid BM25 + vector 10-K retrieval. All numeric claims are verified against tool evidence
-        within a 1.5% tolerance.
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Mandate Template</th>
-            <th>Primary Coverage</th>
-            <th>Strategy Lens</th>
-            <th className="is-num">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {EXAMPLE_PROMPTS.map((item) => (
-            <tr key={item.label}>
-              <td>{item.label}</td>
-              <td>
-                <code>{item.ticker}</code>
-              </td>
-              <td>{item.strategy}</td>
-              <td className="is-num">
-                <button type="button" className="ui-btn" onClick={() => onExample(item.prompt)}>
-                  <EditIcon />
-                  <span>Load</span>
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="ui-prompt-grid">
+        {EXAMPLE_PROMPTS.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => onExample(item.prompt)}
+            className="ui-prompt-card"
+          >
+            <div className="ui-row--between" style={{ width: '100%' }}>
+              <span className="ui-badge ui-badge--primary">{item.ticker}</span>
+              <span className="ui-badge">{item.strategy}</span>
+            </div>
+            <h3>{item.label}</h3>
+            <small className="text-secondary">{item.prompt}</small>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -77,12 +60,13 @@ export function MessageList({ messages, onExample }: Props) {
     <div role="log" aria-label="Conversation" className="ui-stack--md">
       {messages.map((m) =>
         m.role === 'user' ? (
-          <div key={m.id} className="ui-card is-active">
-            <div className="ui-row--between">
-              <span className="ui-eyebrow">Analyst Research Mandate</span>
-              {m.strategy && <span className="ui-badge ui-badge--primary">Strategy: {humanize(m.strategy)}</span>}
-            </div>
+          <div key={m.id} className="ui-user-bubble">
             <p>{m.content}</p>
+            {m.strategy && (
+              <div style={{ marginTop: '6px' }}>
+                <span className="ui-badge">Strategy: {humanize(m.strategy)}</span>
+              </div>
+            )}
           </div>
         ) : (
           <AssistantMessage key={m.id} message={m} />

@@ -15,12 +15,10 @@ export function SourcesPanel({ messageId, citations, highlight, unresolved }: Pr
   const headingId = `${messageId}-sources`;
 
   return (
-    <section aria-labelledby={headingId} className="ui-card">
-      <div className="ui-row--between">
-        <h3 id={headingId} className="ui-eyebrow">
-          Sources ({citations.length})
-        </h3>
-      </div>
+    <section aria-labelledby={headingId} className="ui-stack">
+      <h3 id={headingId} className="ui-eyebrow">
+        Sources ({citations.length})
+      </h3>
 
       <ol className="ui-stack" style={{ listStyle: 'none' }}>
         {citations.map((c, i) => {
@@ -31,13 +29,18 @@ export function SourcesPanel({ messageId, citations, highlight, unresolved }: Pr
               key={active ? `${c.id}-${highlight.nonce}` : c.id}
               id={citationDomId(messageId, c.id)}
               tabIndex={-1}
-              className={`ui-card ${active ? 'animate-flash is-active' : ''}`}
+              className={`ui-card ${active ? 'animate-flash' : ''}`}
             >
               <div className="ui-row--between">
-                <div className="ui-row">
+                <div className="ui-row" style={{ flex: 1 }}>
                   <span className="ui-badge ui-badge--primary">{i + 1}</span>
                   {url ? (
-                    <a href={url} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'underline', textUnderlineOffset: '3px' }}
+                    >
                       {c.title}{' '}
                       <ExternalLinkIcon />
                       <span className="sr-only">(opens in a new tab)</span>

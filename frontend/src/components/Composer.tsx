@@ -28,6 +28,13 @@ export function Composer({ onSend, onStop, isStreaming, strategies, draft }: Pro
     }
   }, [draft]);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 48), 200)}px`;
+  }, [text]);
+
   const canSend = !isStreaming && text.trim().length > 0;
 
   const submit = () => {
@@ -49,51 +56,43 @@ export function Composer({ onSend, onStop, isStreaming, strategies, draft }: Pro
   };
 
   return (
-    <form onSubmit={onSubmit} className="ui-card" aria-label="Ask the analyst">
-      <StrategySelector value={strategy} onChange={setStrategy} available={strategies} disabled={isStreaming} />
+    <form onSubmit={onSubmit} className="ui-composer-box" aria-label="Ask the analyst">
+      <label htmlFor={inputId} className="sr-only">
+        Your request
+      </label>
+      <textarea
+        id={inputId}
+        ref={ref}
+        rows={2}
+        value={text}
+        maxLength={MAX_LEN}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={onKeyDown}
+        aria-describedby={hintId}
+        className="ui-composer-textarea"
+        placeholder="Ask about a ticker, SEC filing, or investment strategy..."
+      />
 
-      <div className="ui-stack">
-        <label htmlFor={inputId} className="ui-eyebrow">
-          Your request
-        </label>
-        <textarea
-          id={inputId}
-          ref={ref}
-          rows={4}
-          value={text}
-          maxLength={MAX_LEN}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKeyDown}
-          aria-describedby={hintId}
-          placeholder="Enter ticker(s) and research mandate (e.g. NVDA weekly brief, AAPL vs MSFT 10-K comparison)..."
-        />
+      <div className="ui-composer-footer">
+        <StrategySelector value={strategy} onChange={setStrategy} available={strategies} disabled={isStreaming} />
+
+        <div className="ui-row">
+          <span id={hintId} className="sr-only">
+            Press Enter to send or Shift+Enter for a newline
+          </span>
+          {isStreaming ? (
+            <button type="button" onClick={onStop} className="ui-btn ui-btn--danger" aria-label="Stop generating">
+              <CloseIcon />
+              <span>Stop</span>
+            </button>
+          ) : (
+            <button type="submit" disabled={!canSend} className="ui-btn ui-btn--primary" aria-label="Send request">
+              <CheckIcon />
+              <span>Analyze</span>
+            </button>
+          )}
+        </div>
       </div>
-
-      <div className="ui-card-actions">
-        {isStreaming ? (
-          <button type="button" onClick={onStop} className="ui-btn ui-btn--danger" aria-label="Stop generating">
-            <CloseIcon />
-            <span>Stop</span>
-          </button>
-        ) : (
-          <button type="submit" disabled={!canSend} className="ui-btn ui-btn--primary" aria-label="Send request">
-            <CheckIcon />
-            <span>Run Analysis</span>
-          </button>
-        )}
-        <button
-          type="button"
-          className="ui-btn"
-          disabled={isStreaming || text.length === 0}
-          onClick={() => setText('')}
-        >
-          Clear
-        </button>
-      </div>
-
-      <small id={hintId} className="text-secondary">
-        Press Enter to submit or Shift+Enter for a newline.
-      </small>
     </form>
   );
 }

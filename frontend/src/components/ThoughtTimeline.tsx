@@ -51,33 +51,35 @@ export function ThoughtTimeline({ thoughts, active }: Props) {
       </summary>
       <div className="ui-disclosure-body" aria-live="polite">
         {thoughts.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Specialist Agent</th>
-                <th>Action</th>
-                <th>Detail</th>
-                <th className="is-num">Elapsed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {thoughts.map((t, i) => (
-                <tr key={i}>
-                  <td>
-                    <div className="ui-row">
-                      <KindIcon kind={t.kind} />
-                      <span>{humanize(t.agent || 'agent')}</span>
-                    </div>
-                  </td>
-                  <td>{describe(t)}</td>
-                  <td>
-                    <code>{t.detail || '—'}</code>
-                  </td>
-                  <td className="is-num">+{formatMs(t.elapsed_ms)}</td>
+          <div className="ui-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Specialist Agent</th>
+                  <th>Action</th>
+                  <th>Parameters / Detail</th>
+                  <th className="is-num">Elapsed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {thoughts.map((t, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div className="ui-row">
+                        <KindIcon kind={t.kind} />
+                        <strong>{humanize(t.agent || 'agent')}</strong>
+                      </div>
+                    </td>
+                    <td>{describe(t)}</td>
+                    <td>
+                      <code>{t.detail || '—'}</code>
+                    </td>
+                    <td className="is-num">+{formatMs(t.elapsed_ms)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <small className="text-secondary">Waiting for the first agent step…</small>
         )}

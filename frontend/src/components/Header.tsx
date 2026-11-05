@@ -14,23 +14,15 @@ export function Header({ config, dark, onToggleTheme, onNewChat, canReset }: Pro
 
   return (
     <header className="ui-topbar">
-      <div className="ui-row">
-        <h1>Investment Analyst · MALIK LLC</h1>
-        {config?.offline_mode ? (
-          <span
-            className="ui-badge ui-badge--warning"
-            title="Serving deterministic offline fixture data"
-          >
-            Offline Fixture Mode
-          </span>
-        ) : (
-          <span
-            className="ui-badge ui-badge--primary"
-            title={`Router: ${config?.models?.router ?? 'gemini-3.5-flash'} | Synthesis: ${modelLabel} | Prompts: ${config?.prompt_version ?? 'v1'}`}
-          >
-            Vertex AI · {modelLabel}
-          </span>
-        )}
+      <div className="ui-brand">
+        <span className="ui-brand-dot" aria-hidden="true" />
+        <h1>MALIK Research</h1>
+        <span
+          className="ui-badge"
+          title={`Router: ${config?.models?.router ?? 'gemini-3.5-flash'} · Synthesis: ${modelLabel}`}
+        >
+          {config?.offline_mode ? 'Offline Fixtures' : modelLabel}
+        </span>
       </div>
 
       <div className="ui-row">
@@ -63,11 +55,11 @@ export function Header({ config, dark, onToggleTheme, onNewChat, canReset }: Pro
           type="button"
           onClick={onNewChat}
           disabled={!canReset}
-          className="ui-btn ui-btn--primary"
+          className="ui-btn"
           title="Start a new research session"
         >
           <RefreshIcon />
-          <span>New session</span>
+          <span>New chat</span>
         </button>
       </div>
     </header>

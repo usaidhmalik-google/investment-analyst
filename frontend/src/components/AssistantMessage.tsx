@@ -41,35 +41,13 @@ export function AssistantMessage({ message }: { message: AssistantMessageT }) {
     el.focus({ preventScroll: true });
   }, [highlight, message.id]);
 
-  const accuracyPct = final?.fact_check ? Math.round(final.fact_check.accuracy * 100) : null;
-  const meterVariant =
-    accuracyPct == null
-      ? ''
-      : accuracyPct >= 95
-        ? 'ui-meter--success'
-        : accuracyPct >= 80
-          ? 'ui-meter--warning'
-          : 'ui-meter--danger';
-
   return (
     <article
       aria-label="Analyst response"
       aria-busy={streaming}
       className={`ui-sheet ${blocked ? 'ui-card--danger' : ''}`}
     >
-      <div className="ui-row--between">
-        <div className="ui-row">
-          <span className="ui-eyebrow">Institutional Research Brief</span>
-          {final && !blocked && <FactCheckBadge factCheck={final.fact_check} />}
-        </div>
-        {!streaming && <LatencyStats server={final?.latency ?? null} client={message.clientLatency} />}
-      </div>
-
-      {final?.fact_check && !blocked && accuracyPct !== null && (
-        <div className={`ui-meter ${meterVariant}`} aria-hidden="true">
-          <span style={{ width: `${Math.max(0, Math.min(100, accuracyPct))}%` }} />
-        </div>
-      )}
+      <ThoughtTimeline thoughts={thoughts} active={streaming} />
 
       {blocked && (
         <div role="alert" className="ui-card ui-card--danger">
@@ -91,7 +69,7 @@ export function AssistantMessage({ message }: { message: AssistantMessageT }) {
       ) : (
         streaming && (
           <div className="ui-card" aria-hidden="true">
-            <small className="text-secondary">Synthesizing multi-agent evidence brief…</small>
+            <small className="text-secondary">Synthesizing research brief…</small>
           </div>
         )
       )}
@@ -113,9 +91,18 @@ export function AssistantMessage({ message }: { message: AssistantMessageT }) {
         <SourcesPanel messageId={message.id} citations={ordered} highlight={highlight} unresolved={unresolved} />
       )}
 
-      <ThoughtTimeline thoughts={thoughts} active={streaming} />
-
-      {!streaming && final?.report_id && <FeedbackControls reportId={final.report_id} />}
+      {!streaming && (
+        <div
+          className="ui-row--between"
+          style={{ paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}
+        >
+          <div className="ui-row">
+            {final && !blocked && <FactCheckBadge factCheck={final.fact_check} />}
+            <LatencyStats server={final?.latency ?? null} client={message.clientLatency} />
+          </div>
+          {final?.report_id && <FeedbackControls reportId={final.report_id} />}
+        </div>
+      )}
     </article>
   );
 }
