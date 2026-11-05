@@ -488,8 +488,10 @@ class _StubAdkRunner:
 
 class TestApiV1AndMetrics:
     def test_cost_estimation(self) -> None:
-        cost = estimate_turn_cost_usd(10_000, 2_000)
-        assert cost > 0
+        flash_cost = estimate_turn_cost_usd(10_000, 2_000, reasoning_model="gemini-3.8-flash")
+        pro_ceiling_cost = estimate_turn_cost_usd(10_000, 2_000, reasoning_model="gemini-pro")
+        assert flash_cost > 0
+        assert pro_ceiling_cost > flash_cost
 
     def test_api_v1_routes_dlp_and_metrics_endpoint(self) -> None:
         settings = Settings(

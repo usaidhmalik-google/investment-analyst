@@ -91,23 +91,33 @@ class Settings(BaseSettings):
 # Vertex AI published list pricing (USD per 1M tokens)
 FLASH_INPUT_USD_PER_1M = 0.15
 FLASH_OUTPUT_USD_PER_1M = 0.60
-PRO_INPUT_USD_PER_1M = 1.25
-PRO_OUTPUT_USD_PER_1M = 10.00
+REASONING_FLASH_INPUT_USD_PER_1M = 0.30
+REASONING_FLASH_OUTPUT_USD_PER_1M = 2.50
+PRO_CEILING_INPUT_USD_PER_1M = 1.25
+PRO_CEILING_OUTPUT_USD_PER_1M = 10.00
 
 
 def estimate_turn_cost_usd(
     prompt_tokens: int,
     output_tokens: int,
     *,
-    pro_share: float = 0.35,
+    reasoning_share: float = 0.35,
+    reasoning_model: str | None = None,
 ) -> float:
-    """Estimate turn cost in USD using the tiered Flash (router/specialists) + Pro (analyst) blend."""
+    """Estimate turn cost in USD using the configured reasoning model's pricing (or Pro ceiling if non-Flash)."""
     p_tok = max(0, int(prompt_tokens))
     o_tok = max(0, int(output_tokens))
-    pro_w = max(0.0, min(1.0, float(pro_share)))
-    flash_w = 1.0 - pro_w
-    blended_in = flash_w * FLASH_INPUT_USD_PER_1M + pro_w * PRO_INPUT_USD_PER_1M
-    blended_out = flash_w * FLASH_OUTPUT_USD_PER_1M + pro_w * PRO_OUTPUT_USD_PER_1M
+    reasoning_w = max(0.0, min(1.0, float(reasoning_share)))
+    router_w = 1.0 - reasoning_w
+    model_name = (reasoning_model or get_settings().reasoning_model).lower()
+    if "flash" in model_name:
+        r_in = REASONING_FLASH_INPUT_USD_PER_1M
+        r_out = REASONING_FLASH_OUTPUT_USD_PER_1M
+    else:
+        r_in = PRO_CEILING_INPUT_USD_PER_1M
+        r_out = PRO_CEILING_OUTPUT_USD_PER_1M
+    blended_in = router_w * FLASH_INPUT_USD_PER_1M + reasoning_w * r_in
+    blended_out = router_w * FLASH_OUTPUT_USD_PER_1M + reasoning_w * r_out
     cost = (p_tok * blended_in + o_tok * blended_out) / 1_000_000.0
     return round(cost, 6)
 

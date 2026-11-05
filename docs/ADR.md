@@ -7,22 +7,22 @@ This document records the core architectural decisions made for the MALIK LLC In
 ## ADR-001: Single-Process Google ADK Hierarchical Orchestration vs. Distributed Microservices
 
 - **Status**: Accepted
-- **Context**: The system requires 5 specialized roles (`root_orchestrator`, `data_gatherer`, `sec_filing_parser`, `strategy_evaluator`, and `financial_analyst`). We evaluated deploying each agent as an independent Cloud Run microservice communicating over HTTP/A2A vs. running the 5-agent hierarchy in-process inside a single Cloud Run container using Google ADK (`AgentTool` + `sub_agents`).
-- **Decision**: Run all 5 ADK agents inside a single FastAPI/Cloud Run service process, using `AgentTool` wrappers for the 3 data-gathering specialists and `sub_agents` transfer for `financial_analyst`.
+- **Context**: The system requires 5 specialized roles (`root_orchestrator`, `data_gatherer`, `sec_filing_parser`, `strategy_evaluator`, and `financial_analyst`). We evaluated deploying each agent as an independent Cloud Run microservice communicating over HTTP/A2A vs. running the 5-agent hierarchy in-process inside a single Cloud Run container using Google ADK (`mode="single_turn"` specialist sub-agents + `transfer_to_agent` handoff).
+- **Decision**: Run all 5 ADK `LlmAgent` instances inside a single FastAPI/Cloud Run service process, configuring the 3 data-gathering specialists with `mode="single_turn"` (`disallow_transfer_to_parent=True, disallow_transfer_to_peers=True`, which ADK 2.x exposes as callable tools to `root_orchestrator`) and transferring to `financial_analyst` via `transfer_to_agent`.
 - **Consequences & Trade-Offs**:
   - **Pros**: Zero network serialization overhead between agents (saves **150–400ms per tool hop**); shared in-memory/Vertex session state (`state["evidence"]`) without distributed race conditions; single container image and IAM boundary to audit.
   - **Cons**: All agents scale with the same Cloud Run container CPU/memory profile (`2 vCPU / 2 GiB`).
-  - **Mitigation**: Clean `AgentTool` boundaries allow extracting any single specialist into an independent remote service in Phase 3 if heavy PDF/OCR workloads require dedicated CPU/GPU pools.
+  - **Mitigation**: Clean `mode="single_turn"` specialist boundaries allow extracting any single specialist into an independent remote service in Phase 3 if heavy PDF/OCR workloads require dedicated CPU/GPU pools.
 
 ---
 
 ## ADR-002: Tiered Model Selection (`gemini-3.5-flash` for Routing/Tools + `gemini-3.8-flash` for Synthesis)
 
 - **Status**: Accepted
-- **Context**: Institutional analysts require both responsive streaming feedback (`p95 Time-to-First-Thought <= 6.0s`) and deep, nuanced financial synthesis across SEC 10-K filings, XBRL statements, and multi-strategy indicators. We benchmarked 8 Gemini models across 7 financial scenarios (`tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md`), where `gemini-3.8-flash` achieved the highest overall CIO Judge Quality (**94.1%**, with 5.0/5 Financial Accuracy and 5.0/5 Factual Grounding) while outperforming legacy `gemini-2.5-pro` (**76.0%** quality) and cutting mean latency from `15.56s` down to `11.26s`.
+- **Context**: Institutional analysts require both responsive streaming feedback (`p95 Time-to-First-Thought <= 6.0s`) and deep, nuanced financial synthesis across SEC 10-K filings, XBRL statements, and multi-strategy indicators. We benchmarked 8 Gemini models across 7 financial scenarios (`tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md`), where `gemini-3.8-flash` achieved the highest overall CIO Judge Quality (**94.1%**, with 5.0/5 Financial Accuracy and 5.0/5 Factual Grounding) while outperforming the baseline Pro model (**76.0%** quality) and cutting mean latency from `15.56s` down to `11.26s`.
 - **Decision**: Use `gemini-3.5-flash` for `root_orchestrator` and the three tool-calling specialist agents (`data_gatherer`, `sec_filing_parser`, `strategy_evaluator`), and use `gemini-3.8-flash` for the final `financial_analyst` synthesis agent.
 - **Consequences & Trade-Offs**:
-  - **Pros**: Cuts per-turn LLM inference cost by **53–68%** ($0.0211/turn vs. $0.0448/turn on all-Pro) and reduces p95 Time-to-First-Thought from `~6.8s` to `< 2.4s` while maintaining `1.00` tool recall and `>= 4.5/5.0` synthesis quality.
+  - **Pros**: Cuts per-turn LLM inference cost by **67%** ($0.0069/turn vs. $0.0211/turn Pro-synthesis ceiling) and achieves a measured **p95 Time-to-First-Thought of `3.3s` (`3,321.3 ms`)** on the 10-case golden evaluation suite ([`SCORECARD_20261105T223730Z.md`](../investment-analyst/evals/results/SCORECARD_20261105T223730Z.md)) with **`1.00` (`100%`) fact-check accuracy**, **`1.00` tool & citation recall**, and **`5.0 / 5.0` across all 5 Gemini Judge dimensions**.
   - **Cons**: Requires maintaining model-tier configuration (`ANALYST_ROUTER_MODEL` and `ANALYST_REASONING_MODEL`).
 
 ---
@@ -34,7 +34,7 @@ This document records the core architectural decisions made for the MALIK LLC In
 - **Decision**:
   1. Compute all technical and fundamental strategy metrics in deterministic, unit-tested Python ([`analyst/strategies/indicators.py`](../investment-analyst/analyst/strategies/indicators.py) and [`analyst/strategies/engine.py`](../investment-analyst/analyst/strategies/engine.py)).
   2. Configure `financial_analyst` with **`tools=[]`** so it can only synthesize from `session.state["evidence"]`.
-  3. Run [`fact_check(text, evidence)`](../investment-analyst/analyst/guardrails/fact_check.py) on every generated brief to verify 100% of numeric claims against raw tool payloads within 1.5% rounding tolerance.
+  3. Run [`fact_check(text, evidence)`](../investment-analyst/analyst/guardrails/fact_check.py) on every generated brief so every numeric claim is **matched at the precision the number is displayed (half a unit of the last digit)** against raw tool payloads.
 - **Consequences & Trade-Offs**:
   - **Pros**: Eliminates LLM arithmetic hallucinations; provides an auditable `FactCheckResult` badge on every response.
   - **Cons**: Adding a new technical indicator requires writing a pure Python function rather than just changing a prompt (mitigated by the `@register_strategy` plugin registry).
@@ -77,7 +77,7 @@ This document records the core architectural decisions made for the MALIK LLC In
 
 ---
 
-## ADR-007: Three-Tier Market Data Provider Chain with Per-Provider Circuit Breakers
+## ADR-007: Live Market Data Provider Failover with Per-Provider Circuit Breakers & Deterministic CI Fixtures
 
 - **Status**: Accepted
 - **Context**: Free and commercial market data APIs (Yahoo Finance, Alpha Vantage, SEC EDGAR) exhibit burst rate limiting (HTTP 429) and occasional 5xx outages.
@@ -85,7 +85,7 @@ This document records the core architectural decisions made for the MALIK LLC In
   1. Per-endpoint LRU `TTLCache` (`@cached`).
   2. `call_with_retry` (exponential backoff + full jitter + `Retry-After` header support).
   3. Per-provider `CircuitBreaker` (`CLOSED -> OPEN -> HALF_OPEN`, tripping after 3 consecutive failures for 30s).
-  4. Automatic fallback chain: `Yahoo Finance -> Alpha Vantage -> Deterministic Offline Fixture`.
+  4. Live fallback chain is **Yahoo → Yahoo RSS (news) → Alpha Vantage**, with circuit breakers; offline fixtures ([`analyst/data/fixtures.py`](../investment-analyst/analyst/data/fixtures.py)) are used **ONLY** when `ANALYST_OFFLINE_MODE=true`.
 
 ---
 

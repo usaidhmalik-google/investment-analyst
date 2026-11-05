@@ -32,7 +32,7 @@ flowchart TB
         DLP["Deterministic DLP Scanner\n(SSN / CC Luhn / Email / Phone / Secrets)"]
         RegexScreen["Local Prompt-Injection & FINRA Screen\n(MNPI / Manipulation / Return Guarantees)"]
         Armor["Google Cloud Model Armor\n(Input & Output Template Screening)"]
-        FactCheck["Deterministic Numeric Fact-Checker\n(1.5% Tolerance vs. Session Evidence)"]
+        FactCheck["Deterministic Numeric Fact-Checker\n(Matched at Displayed Precision: Half a Unit of Last Digit)"]
     end
 
     subgraph ADK["Google ADK 5-Agent Hierarchy"]
@@ -59,9 +59,9 @@ flowchart TB
     Analyst -->|HTTPS| WAF --> IAP --> FE
     FE -->|Direct VPC Egress + IAP JWT| BE
     BE --> DLP --> RegexScreen --> Armor --> Orch
-    Orch -->|AgentTool| DG
-    Orch -->|AgentTool| SEC
-    Orch -->|AgentTool| SE
+    Orch -->|single_turn sub-agent tool| DG
+    Orch -->|single_turn sub-agent tool| SEC
+    Orch -->|single_turn sub-agent tool| SE
     Orch -->|transfer_to_agent| FA
     FA --> FactCheck
     DG --> YF & AV
@@ -80,10 +80,10 @@ sequenceDiagram
     participant FE as Nginx / React Frontend
     participant API as FastAPI (/api/v1/chat/stream)
     participant Guard as DLP + Injection + Model Armor
-    participant Orch as root_orchestrator (Flash)
-    participant Spec as Specialist Agents (Flash)
+    participant Orch as root_orchestrator (3.5 Flash)
+    participant Spec as Specialist Sub-Agents (3.5 Flash, single_turn)
     participant State as ADK Session State (state["evidence"])
-    participant Synth as financial_analyst (Pro, No Tools)
+    participant Synth as financial_analyst (3.8 Flash, No Tools)
     participant FC as Numeric Fact-Checker
     participant Store as Firestore + BigQuery + Webhooks
 

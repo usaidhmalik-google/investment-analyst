@@ -58,7 +58,7 @@ What to expect, and where to tune:
 | Judge scores missing or erroring | Judge model id or location | `ANALYST_JUDGE_MODEL`, `--judge-location global` |
 | `RESOURCE_EXHAUSTED` / 429 from Vertex | Quota | Run fewer cases (`--case <id>`), request quota |
 
-Re-benchmark the **reasoning model** before the panel. The legacy benchmark (`tests/outputs/BENCHMARK_SCORECARD_models_and_judge.md`) found 2.5 Flash faster *and* rated higher than 2.5 Pro. Run `make eval-all` with each `ANALYST_REASONING_MODEL` and keep the scorecards as evidence for your model choice.
+Re-benchmark the **reasoning model** before the panel. The benchmark (`tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md`) found `gemini-3.8-flash` faster *and* rated higher than the baseline Pro model (94.1% vs 76.0%). Run `make eval-all` with each `ANALYST_REASONING_MODEL` and keep the scorecards as evidence for your model choice.
 
 ## 3. Run it locally end to end
 

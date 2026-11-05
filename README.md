@@ -25,7 +25,7 @@ graph TD
         ST --> FAA
         FAA --> FC["Post-generation fact check"]
     end
-    FAA -.->|Gemini 2.5 Pro| VAI[Vertex AI]
+    FAA -.->|Gemini 3.8 Flash| VAI[Vertex AI]
     OR -.->|Gemini 3.5 Flash| VAI
     BE --> FS[(Firestore: reports + feedback)]
     BE --> BQ[(BigQuery: usage + audit)]
@@ -40,7 +40,7 @@ graph TD
    - **SEC Filing Parser**: filing index, 10-K/10-Q section text, 8-K, XBRL-reported financials.
    - **Strategy Evaluator**: deterministic Momentum, Value, Swing and Income signals.
 3. Every tool result is stored in session state as **evidence**, keyed by a citation id such as `Q:NVDA`, `H:NVDA:5d`, `N:NVDA:2`, `SEC:NVDA:10-K:<accession>` or `S:NVDA:momentum`.
-4. The orchestrator **transfers** to the **Financial Analyst** (Gemini 2.5 Pro). Its instruction receives the raw evidence under a strict grounding lock: use only the evidence, compute no new numbers, cite every claim. The brief streams to the UI token by token.
+4. The orchestrator **transfers** to the **Financial Analyst** (Gemini 3.8 Flash). Its instruction receives the raw evidence under a strict grounding lock: use only the evidence, compute no new numbers, cite every claim. The brief streams to the UI token by token.
 5. The **fact checker** pulls every figure out of the brief and checks it against the evidence, within the precision the figure was written to. The result goes back with the answer (`fact_check.accuracy`).
 6. The report, prompt, citations, latency, tokens and prompt lineage are written to **Firestore**. Usage and audit rows go to **BigQuery**. Spans go to **Cloud Trace**.
 
@@ -134,7 +134,7 @@ See [terraform/analyst/README.md](terraform/analyst/README.md). In short:
 | Strict grounding lock, refuse unverified advice | `prompts/v1/financial_analyst.md`, `prompts/v1/orchestrator.md` |
 | Model Armor / injection / jailbreak | `guardrails/model_armor.py` (prompt and response), `guardrails/injection.py`, ADK `before_model_callback` |
 | Versioned prompts loaded dynamically | `analyst/prompts/<version>/`, `PROMPT_VERSION`, content hashes stored per report |
-| Gemini 3.5 Flash routing, Gemini 2.5 Pro reasoning | `ANALYST_ROUTER_MODEL` / `ANALYST_REASONING_MODEL` |
+| Gemini 3.5 Flash routing, Gemini 3.8 Flash reasoning | `ANALYST_ROUTER_MODEL` / `ANALYST_REASONING_MODEL` |
 | IAP / JWT AuthN, RBAC through Cloud Identity groups | `api/auth.py`; IAP on the frontend Cloud Run service with `iap.httpsResourceAccessor` for `analyst_group_email` |
 | Custom service account, least-privilege IAM, Secret Manager | `terraform/analyst/iam.tf`, `secrets.tf` |
 | OpenTelemetry + Cloud Trace, structured JSON logs with trace ids | `analyst/telemetry.py`; FastAPI and ADK spans |
@@ -148,8 +148,8 @@ See [terraform/analyst/README.md](terraform/analyst/README.md). In short:
 ### Known gaps and decisions for the PRR
 
 * **Per-agent identities.** All ADK agents run in one Cloud Run service, so they share `investment-analyst-sa`. Splitting them into separate services with their own SAs is documented in `terraform/analyst/README.md`.
-* **Latency targets differ between the docs:** TDD p95 ≤ 6.0 s, scope < 4.0 s. The eval gate uses 6.0 s; tighten `GATES["ttft_p95_ms_max"]` in `evals/run_evals.py` once the target is agreed. TTFT measures the first streamed "thought" (the orchestrator's first tool call).
-* **Model choice:** the defaults follow the TDD (2.5 Pro / 3.5 Flash). The earlier Aegis benchmarks used 3.1 Pro. You can swap models with environment variables, no code change.
+* **Latency targets differ between the docs:** TDD p95 ≤ 6.0 s, scope < 4.0 s. The eval gate uses 6.0 s; our measured live p95 TTFT is 3.3 s (`3,321.3 ms`). TTFT measures the first streamed "thought" (the orchestrator's first tool call).
+* **Model choice:** the defaults use `gemini-3.5-flash` for routing/tools and `gemini-3.8-flash` for synthesis (`ANALYST_ROUTER_MODEL` / `ANALYST_REASONING_MODEL`), selected based on the empirical benchmark (94.1% vs 76.0% quality, 11.26 s vs 15.56 s latency) and live golden eval (`SCORECARD_20261105T223730Z.md`). You can swap models with environment variables, no code change.
 * **Report history UI** is out of scope for V1, as the TDD says. Reports are still stored for audit and evals.
 * **Sessions** default to in-memory, which is fine for one instance. Set `agent_engine_id` in Terraform (`SESSION_BACKEND=vertex`) or `SESSION_BACKEND=database` before scaling out.
 * **Backend invoker IAM** is off by default. The backend relies on internal ingress plus IAP JWT checks. To turn it back on, set `frontend_attach_id_token = true` and `backend_invoker_iam_disabled = false`.

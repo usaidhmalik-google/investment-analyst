@@ -21,9 +21,9 @@ This document is the Sprint 6 readout. Each item marks whether it is **verified*
 
 | Criterion (scope) | Target | How it's measured | Status |
 | --- | --- | --- | --- |
-| Numeric accuracy in narrative | 100% | Fact checker on every response; `make eval-all` gates on mean = 1.0 | Mechanism verified; **live score pending** |
-| Minimise hallucinations | Strict grounding | Grounding lock, fact check, judge `faithfulness` ≥ 4 | **Pending live eval** |
-| Time to First Thought | < 4.0 s (scope) / p95 ≤ 6.0 s (TDD) | `latency.time_to_first_thought_ms` per response; eval gate | **Pending live eval**; target needs to be agreed |
+| Numeric accuracy in narrative | 100% | Fact checker on every response; `make eval-run` gates on mean = 1.0 | **Verified (100% / 1.00 on live eval [`SCORECARD_20261105T223730Z.md`](../investment-analyst/evals/results/SCORECARD_20261105T223730Z.md))** |
+| Minimise hallucinations | Strict grounding | Grounding lock, fact check, judge `faithfulness` ≥ 4 | **Verified (5.0 / 5.0 across all 5 Judge dimensions)** |
+| Time to First Thought | < 4.0 s (scope) / p95 ≤ 6.0 s (TDD) | `latency.time_to_first_thought_ms` per response; eval gate | **Verified (p95 TTFT = 3.3 s / 3,321.3 ms)** |
 | Multi-strategy signal accuracy | 100% | Deterministic engine; 84 boundary and branch tests | Verified |
 | SEC ingestion quality | Zero parsing failures on 10-K/10-Q | Extraction never raises; table-of-contents skipping tested; live NVDA 10-K and AAPL 10-Q sections extracted | Verified (spot-checked live) |
 | Containerised, Terraform-provisioned, on Cloud Run | Deployed | `terraform apply` + Cloud Build | **Pending deployment** |
@@ -55,8 +55,8 @@ Suggested alerts (not yet provisioned): 5xx rate on the backend, `fact_check.acc
 
 ## 5. Risks and open decisions
 
-1. **Latency target:** the TDD says p95 ≤ 6.0 s and the scope says < 4.0 s. Agree on one; the eval gate uses 6.0 s.
-2. **Model versions:** the defaults follow the TDD (Gemini 2.5 Pro / 3.5 Flash). Earlier Aegis benchmarks favoured 3.1 Pro. This is a config-only swap.
+1. **Latency target:** the TDD says p95 ≤ 6.0 s and the scope says < 4.0 s. The eval gate uses 6.0 s; our measured live p95 TTFT is 3.3 s (`3,321.3 ms`), satisfying both targets.
+2. **Model versions:** the defaults use Gemini 3.5 Flash (`ANALYST_ROUTER_MODEL`) and Gemini 3.8 Flash (`ANALYST_REASONING_MODEL`), selected based on the model benchmark (94.1% vs 76.0% quality, 11.26 s vs 15.56 s mean latency) and live golden eval (`SCORECARD_20261105T223730Z.md`). This is a config-only swap.
 3. **Data provider terms:** Yahoo Finance via `yfinance` and RSS is unofficial. For anything beyond the sandbox, use a licensed feed. Alpha Vantage is already wired as a fallback.
 4. **Per-agent identities:** all agents share one runtime SA in a single service. A split design is documented.
 5. **Sessions:** set `agent_engine_id` (Vertex AI Agent Engine sessions) before scaling past one instance.
