@@ -16,11 +16,11 @@ This document records the core architectural decisions made for the MALIK LLC In
 
 ---
 
-## ADR-002: Tiered Model Selection (`gemini-3.5-flash` for Routing/Tools + `gemini-2.5-pro` for Synthesis)
+## ADR-002: Tiered Model Selection (`gemini-3.5-flash` for Routing/Tools + `gemini-3.8-flash` for Synthesis)
 
 - **Status**: Accepted
-- **Context**: Institutional analysts require both responsive streaming feedback (`p95 Time-to-First-Thought <= 6.0s`) and deep, nuanced financial synthesis across SEC 10-K filings, XBRL statements, and multi-strategy indicators.
-- **Decision**: Use `gemini-3.5-flash` for `root_orchestrator` and the three tool-calling specialist agents (`data_gatherer`, `sec_filing_parser`, `strategy_evaluator`), and reserve `gemini-2.5-pro` strictly for the final `financial_analyst` synthesis agent.
+- **Context**: Institutional analysts require both responsive streaming feedback (`p95 Time-to-First-Thought <= 6.0s`) and deep, nuanced financial synthesis across SEC 10-K filings, XBRL statements, and multi-strategy indicators. We benchmarked 8 Gemini models across 7 financial scenarios (`tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md`), where `gemini-3.8-flash` achieved the highest overall CIO Judge Quality (**94.1%**, with 5.0/5 Financial Accuracy and 5.0/5 Factual Grounding) while outperforming legacy `gemini-2.5-pro` (**76.0%** quality) and cutting mean latency from `15.56s` down to `11.26s`.
+- **Decision**: Use `gemini-3.5-flash` for `root_orchestrator` and the three tool-calling specialist agents (`data_gatherer`, `sec_filing_parser`, `strategy_evaluator`), and use `gemini-3.8-flash` for the final `financial_analyst` synthesis agent.
 - **Consequences & Trade-Offs**:
   - **Pros**: Cuts per-turn LLM inference cost by **53–68%** ($0.0211/turn vs. $0.0448/turn on all-Pro) and reduces p95 Time-to-First-Thought from `~6.8s` to `< 2.4s` while maintaining `1.00` tool recall and `>= 4.5/5.0` synthesis quality.
   - **Cons**: Requires maintaining model-tier configuration (`ANALYST_ROUTER_MODEL` and `ANALYST_REASONING_MODEL`).

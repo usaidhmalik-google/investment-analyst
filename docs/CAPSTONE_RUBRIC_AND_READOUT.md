@@ -194,9 +194,9 @@ flowchart LR
 
 | Phase | Target Horizon | Customer Features Unlocked | Native Google Cloud Services Leveraged & Strategic Value |
 | :--- | :---: | :--- | :--- |
-| **Phase 1: Field-Ready MVP** *(Delivered Today)* | Day 1 | Real-time SSE multi-agent briefs, 4 deterministic strategies + plugin API, SEC XBRL & Hybrid RAG over live filings, 100% numeric fact-check badge, thumbs-up/down feedback loop. | **Cloud Run** (serverless scale-to-zero), **Vertex AI Gemini 3.5 Flash & 2.5 Pro**, **Cloud IAP** (zero-trust identity), **Model Armor**, **Firestore Native**, **BigQuery**, **Secret Manager**, **Cloud Trace & Monitoring**. |
+| **Phase 1: Field-Ready MVP** *(Delivered Today)* | Day 1 | Real-time SSE multi-agent briefs, 4 deterministic strategies + plugin API, SEC XBRL & Hybrid RAG over live filings, 100% numeric fact-check badge, thumbs-up/down feedback loop. | **Cloud Run** (serverless scale-to-zero), **Vertex AI Gemini 3.5 Flash & 3.8 Flash**, **Cloud IAP** (zero-trust identity), **Model Armor**, **Firestore Native**, **BigQuery**, **Secret Manager**, **Cloud Trace & Monitoring**. |
 | **Phase 2: Enterprise Desk Pilot** | Days 30–60 | Multi-year historical 10-K/10-Q/earnings-transcript corpus search across the S&P 500; persistent cross-device analyst workspaces; automated morning briefings triggered by 8-K filings; live desk FinOps dashboard. | **Vertex AI Agent Engine** (`SESSION_BACKEND=vertex` already wired in [`sessions.py`](../investment-analyst/analyst/services/sessions.py)), **Vertex AI Vector Search & `text-embedding-005`** (`VertexAIEmbedder` already wired in [`rag.py`](../investment-analyst/analyst/data/rag.py)), **Cloud Pub/Sub + Cloud Scheduler** (consuming [`webhooks.py`](../investment-analyst/analyst/services/webhooks.py) events), **Cloud Armor WAF** ([`network_security.tf`](../terraform/analyst/network_security.tf)), and **Looker Studio** on BigQuery. |
-| **Phase 3: Regulated Global Production** | Days 60–120 | Full SEC Rule 17a-4 / FINRA Rule 3110 immutable supervisory sign-off workflow; proprietary buy-side house-style distillation; strict data-exfiltration perimeter for confidential portfolio holdings; 99.95% multi-region SLA. | **VPC Service Controls (VPC-SC)** (cryptographic data perimeter around Vertex AI, Firestore, and BigQuery), **Cloud KMS Customer-Managed Encryption Keys (CMEK)**, **Cloud Storage Bucket Lock (WORM)** for 7-year SEC 17a-4 retention, **Sensitive Data Protection (Cloud DLP)** inspection templates, and **Vertex AI Supervised Fine-Tuning / Context Caching** to distill `gemini-2.5-pro` briefs into a custom Flash checkpoint (cutting synthesis latency and cost by an additional 55%). |
+| **Phase 3: Regulated Global Production** | Days 60–120 | Full SEC Rule 17a-4 / FINRA Rule 3110 immutable supervisory sign-off workflow; proprietary buy-side house-style distillation; strict data-exfiltration perimeter for confidential portfolio holdings; 99.95% multi-region SLA. | **VPC Service Controls (VPC-SC)** (cryptographic data perimeter around Vertex AI, Firestore, and BigQuery), **Cloud KMS Customer-Managed Encryption Keys (CMEK)**, **Cloud Storage Bucket Lock (WORM)** for 7-year SEC 17a-4 retention, **Sensitive Data Protection (Cloud DLP)** inspection templates, and **Vertex AI Supervised Fine-Tuning / Context Caching** to distill `gemini-3.8-flash` briefs into a custom Flash checkpoint (cutting synthesis latency and cost by an additional 55%). |
 
 ---
 
@@ -206,8 +206,8 @@ flowchart LR
 
 ### 1. Agentic & Multi-Agent Systems
 - **Cognitive Architecture & CUJ Alignment** ([`analyst/agents/__init__.py`](../investment-analyst/analyst/agents/__init__.py)):
-  - Root `root_orchestrator` (`gemini-3.5-flash`) decomposes user requests across three parallel-capable specialist `AgentTool`s (`data_gatherer`, `sec_filing_parser`, `strategy_evaluator`) and transfers final synthesis to `financial_analyst` (`gemini-2.5-pro`).
-  - `RunConfig(streaming_mode=StreamingMode.SSE, max_llm_calls=30)` and `asyncio.timeout(settings.agent_timeout_seconds)` prevent infinite reasoning loops and enforce enterprise latency SLAs.
+  - Root `root_orchestrator` (`gemini-3.5-flash`) decomposes user requests across three parallel-capable specialist `AgentTool`s (`data_gatherer`, `sec_filing_parser`, `strategy_evaluator`) and transfers final synthesis to `financial_analyst` (`gemini-3.8-flash`).
+  - `RunConfig(streaming_mode=StreamingMode.SSE, max_llm_calls=50)` and `asyncio.timeout(settings.agent_timeout_seconds)` prevent infinite reasoning loops and enforce enterprise latency SLAs.
 - **Session Memory & State Management** ([`analyst/tools/evidence.py`](../investment-analyst/analyst/tools/evidence.py), [`analyst/services/sessions.py`](../investment-analyst/analyst/services/sessions.py)):
   - Every tool call writes structured evidence into `tool_context.state["evidence"][citation_id]`.
   - Session IDs are strictly server-minted and bound to the authenticated `user_id` (`TestSessions::test_other_users_session_not_reused`), preventing cross-tenant context leakage.
@@ -223,8 +223,8 @@ flowchart LR
   - `evaluate_retrieval_quality()` computes `precision_at_k`, `recall_at_k`, `f1_at_k`, `mrr` (Mean Reciprocal Rank), and `ndcg_at_k`.
 
 ### 3. Model Selection, Tuning & Optimization
-- **Model Tiering & Cost/Latency Optimization** ([`analyst/config.py`](../investment-analyst/analyst/config.py)):
-  - `router_model = "gemini-3.5-flash"` for low-latency orchestration and tool calling; `reasoning_model = "gemini-2.5-pro"` for high-coherence financial synthesis.
+- **Model Tiering & Empirical Benchmark Selection** ([`analyst/config.py`](../investment-analyst/analyst/config.py), [`tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md`](../tests/outputs/BENCHMARK_SCORECARD_gemini_3_8_flash.md)):
+  - `router_model = "gemini-3.5-flash"` for low-latency orchestration and tool calling; `reasoning_model = "gemini-3.8-flash"` for high-coherence financial synthesis (**94.1%** CIO Judge score and **11.26s** mean latency across 7 scenarios vs. **76.0%** and **15.56s** on legacy `gemini-2.5-pro`).
   - `estimate_turn_cost_usd()` computes per-turn USD token cost and exposes cumulative spend on `/api/v1/metrics`.
 - **Prompt Versioning & Structured Output Enforcement** ([`analyst/prompts/__init__.py`](../investment-analyst/analyst/prompts/__init__.py), [`evals/judge.py`](../investment-analyst/evals/judge.py)):
   - Prompts are stored in versioned directories (`analyst/prompts/v1/*.md`) with SHA-256 lineage hashes persisted on every report.

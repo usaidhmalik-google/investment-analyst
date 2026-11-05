@@ -151,7 +151,7 @@ def search_sec_filing(
     if not clean_query:
         raise ValueError("query must not be empty")
 
-    sec = market.get_filing_section(ticker, form, section, None, 15000)
+    sec = market.get_filing_section(ticker, form, section, None, 120000)
     chunks = rag.chunk_filing_section(
         sec.text,
         ticker=sec.ticker,

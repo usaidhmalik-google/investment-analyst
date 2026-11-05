@@ -10,11 +10,11 @@ interface Props {
 }
 
 const DESCRIPTIONS: Record<Strategy | 'none', string> = {
-  none: 'No strategy lens — general brief',
-  momentum: 'Trend & relative strength',
-  value: 'Valuation vs. fundamentals',
-  swing: 'Short-term price swings',
-  income: 'Dividends & yield',
+  none: 'No strategy lens — general institutional brief',
+  momentum: 'Trend & relative strength (RSI, MACD, 20/50/200 SMA)',
+  value: 'Valuation vs. fundamentals (P/E, P/B, ROE, FCF)',
+  swing: 'Short-term price swings (Bollinger %B, ATR, RSI)',
+  income: 'Dividends, yield sustainability & payout coverage',
 };
 
 function isStrategy(s: string): s is Strategy {
@@ -27,12 +27,9 @@ export function StrategySelector({ value, onChange, available, disabled }: Props
   const options: Array<Strategy | null> = [null, ...list];
 
   return (
-    <fieldset className="flex flex-wrap items-center gap-2" disabled={disabled}>
-      <legend className="sr-only">Investment strategy lens</legend>
-      <span aria-hidden="true" className="text-xs font-medium text-slate-500 dark:text-slate-400">
-        Strategy
-      </span>
-      <div className="inline-flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800/70">
+    <fieldset className="ui-stack" disabled={disabled} style={{ border: 'none' }}>
+      <legend className="ui-eyebrow">Strategy Lens</legend>
+      <div className="ui-row">
         {options.map((opt) => {
           const key = opt ?? 'none';
           const checked = value === opt;
@@ -40,14 +37,7 @@ export function StrategySelector({ value, onChange, available, disabled }: Props
             <label
               key={key}
               title={DESCRIPTIONS[key]}
-              className={[
-                'cursor-pointer select-none rounded-md px-2.5 py-1 text-xs font-medium transition',
-                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500',
-                checked
-                  ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100',
-                disabled ? 'cursor-not-allowed opacity-60' : '',
-              ].join(' ')}
+              className={`ui-btn ${checked ? 'ui-btn--primary' : ''}`}
             >
               <input
                 type="radio"

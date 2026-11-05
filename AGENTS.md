@@ -70,6 +70,8 @@ and `frontend/src/types.ts` together.
 | Aggressive DLP phone/SSN regexes matched substrings inside 18-digit SEC accession numbers (`0000320193-25-000079`) | Always guard numeric PII regexes with `(?<![\d\-])...(?![\d\-])` and Luhn validation (`guardrails/dlp.py`). |
 | Static `Literal["momentum", "value", "swing", "income"]` on `StrategySignal.strategy` rejected runtime-registered strategy plugins | Validate `StrategySignal.strategy` with a `@field_validator` delegating to `engine.is_registered_strategy(v)`. |
 | Calling `TestClient(app)` without a `with` block skipped FastAPI's `lifespan` hook so `app.state.service` was unset | Always use `with TestClient(app) as client:` when testing routes that resolve `app.state.service`. |
+| Unanchored `lib/` in `.gitignore` (from a Python template) silently ignored `frontend/src/lib/` | Explicitly un-ignore `!frontend/src/lib/` in `.gitignore` and verify with `make lint` (`tsc -b`). |
+| `fact_check.py` parsed non-currency time-window labels (`3M / 6M Rate of Change`, `3M ROC`) as `$3,000,000` and `$6,000,000` (`M` = million) | Strip non-`$` time-horizon labels (`(?<!\$)\b(?:1|3|6|9|12)M...`) in `guardrails/fact_check.py::_STRIP_PATTERNS` before extracting numeric claims. |
 
 **When you hit a new mistake, add a row here in the same change that fixes it.**
 

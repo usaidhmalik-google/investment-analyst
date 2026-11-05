@@ -105,7 +105,7 @@ Server-Sent Events over a `fetch` response (`event: <type>\ndata: <json>\n\n`):
 ```json
 {
   "strategies": ["momentum", "value", "swing", "income"],
-  "models": {"router": "gemini-3.5-flash", "reasoning": "gemini-2.5-pro"},
+  "models": {"router": "gemini-3.5-flash", "reasoning": "gemini-3.8-flash"},
   "offline_mode": false,
   "prompt_version": "v1"
 }
@@ -127,7 +127,7 @@ Server-Sent Events over a `fetch` response (`event: <type>\ndata: <json>\n\n`):
 | `GOOGLE_CLOUD_LOCATION`     | `global` (prod)            | Vertex AI endpoint for Gemini (3.x needs `global`)      |
 | `GOOGLE_GENAI_USE_VERTEXAI` | `TRUE`                     | Route Gemini calls through Vertex AI                    |
 | `ANALYST_ROUTER_MODEL`      | `gemini-3.5-flash`         | Orchestrator + gatherer agents                          |
-| `ANALYST_REASONING_MODEL`   | `gemini-2.5-pro`           | Financial Analyst synthesis                             |
+| `ANALYST_REASONING_MODEL`   | `gemini-3.8-flash`         | Financial Analyst synthesis                             |
 | `ANALYST_JUDGE_MODEL`       | `gemini-3.5-flash`         | LLM-as-a-judge evals                                    |
 | `ALPHA_VANTAGE_SECRET`      | –                          | Secret Manager version resource for the Alpha Vantage key |
 | `ALPHA_VANTAGE_API_KEY`     | –                          | Local-dev override (never set in Cloud Run)             |

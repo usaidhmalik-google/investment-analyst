@@ -158,3 +158,36 @@ export interface AssistantMessage {
 }
 
 export type Message = UserMessage | AssistantMessage;
+
+export const EXAMPLE_PROMPTS: ReadonlyArray<{
+  label: string;
+  ticker: string;
+  strategy: string;
+  prompt: string;
+}> = [
+  {
+    label: 'NVDA Weekly Brief & Catalyst Audit',
+    ticker: 'NVDA',
+    strategy: 'Momentum',
+    prompt: "Give me a brief on NVIDIA's performance this week and summarize the latest news regarding their new chips",
+  },
+  {
+    label: 'AAPL vs MSFT 10-K Fundamental Comparison',
+    ticker: 'AAPL / MSFT',
+    strategy: 'Value',
+    prompt: 'Compare AAPL and MSFT fundamentals from their latest 10-K filings',
+  },
+  {
+    label: 'AMD Technical Momentum Evaluation',
+    ticker: 'AMD',
+    strategy: 'Momentum',
+    prompt: 'Is AMD showing momentum right now? Evaluate it with the momentum strategy',
+  },
+  {
+    label: 'JNJ Dividend Yield & Payout Sustainability',
+    ticker: 'JNJ',
+    strategy: 'Income',
+    prompt: 'What is the dividend yield and payout history for JNJ?',
+  },
+];
+

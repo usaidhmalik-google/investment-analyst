@@ -144,7 +144,7 @@ variable "router_model" {
 variable "reasoning_model" {
   description = "ANALYST_REASONING_MODEL — Financial Analyst synthesis agent."
   type        = string
-  default     = "gemini-2.5-pro"
+  default     = "gemini-3.8-flash"
 }
 
 variable "sec_user_agent" {

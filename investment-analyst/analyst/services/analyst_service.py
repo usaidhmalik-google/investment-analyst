@@ -240,7 +240,7 @@ class AnalystService:
 
             state_delta = {STRATEGY_STATE_KEY: request.strategy} if request.strategy else None
             message = types.Content(role="user", parts=[types.Part.from_text(text=dlp_scan.sanitized_text)])
-            run_config = RunConfig(streaming_mode=StreamingMode.SSE, max_llm_calls=30)
+            run_config = RunConfig(streaming_mode=StreamingMode.SSE, max_llm_calls=50)
             try:
                 async with asyncio.timeout(self.settings.agent_timeout_seconds):
                     async for event in self.runner.run_async(

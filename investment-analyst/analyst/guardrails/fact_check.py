@@ -47,6 +47,8 @@ _STRIP_PATTERNS = [
     r"\bItem\s+\d+[A-C]?(?:\.\d{2})?\b",
     r"\b\d+\s?[- ](?:day|week|month|year|quarter|yr|session|bar)s?\b",
     r"\b\d+(?:d|mo|y|yr|w)\b",
+    r"(?<!\$)\b(?:1|3|6|9|12)M(?:\s*/\s*(?:1|3|6|9|12)M)+",
+    r"(?<!\$)\b(?:1|3|6|9|12)M\s+(?:ROC|rate\s+of\s+change|return|change|performance|momentum|window|horizon)\b",
     r"\b(?:RSI|SMA|EMA|ATR|MACD|ROC|Bollinger(?:\s+Bands?)?)\s*\([\d,\s.]+\)",
     r"\b(?:RSI|SMA|EMA|ATR|ROC)[-_]?\d+\b",
     r"\b(?:SMA|EMA)\s\d{1,3}\b(?!\.\d)",  # "SMA 50" names the window, not a value

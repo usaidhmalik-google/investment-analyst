@@ -40,7 +40,7 @@ flowchart TB
         DG["data_gatherer\n(gemini-3.5-flash · 5 Market Tools)"]
         SEC["sec_filing_parser\n(gemini-3.5-flash · 4 EDGAR/XBRL/RAG Tools)"]
         SE["strategy_evaluator\n(gemini-3.5-flash · 4 Strategies + Plugins)"]
-        FA["financial_analyst\n(gemini-2.5-pro · ZERO Tools)"]
+        FA["financial_analyst\n(gemini-3.8-flash · ZERO Tools)"]
     end
 
     subgraph Data["Managed Storage, Secrets & Observability"]

@@ -12,7 +12,7 @@ TF ?= $(shell command -v terraform 2>/dev/null || echo $(ROOT)/.tools/terraform/
 export PATH := $(NODE_BIN):$(PATH)
 
 .PHONY: help install install-backend install-frontend format lint test test-backend test-frontend \
-        eval-all eval-quick run-backend run-backend-offline run-frontend adk-web docker-build tf-validate ci
+        eval-all eval-quick eval-run run-backend run-backend-offline run-frontend adk-web docker-build tf-validate ci
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -42,22 +42,24 @@ test-frontend: ## Vitest
 	cd $(FRONTEND) && npm test
 
 eval-all: ## Golden-dataset regression + LLM-as-a-Judge (needs Vertex AI ADC)
-	cd $(BACKEND) && $(PY) evals/run_evals.py
+	cd $(BACKEND) && set -a && [ -f .env ] && . ./.env; set +a && $(PY) evals/run_evals.py
+
+eval-run: eval-all ## Alias for eval-all (Golden-dataset regression + LLM-as-a-Judge)
 
 eval-quick: ## Golden dataset with deterministic checks only (no judge model)
-	cd $(BACKEND) && $(PY) evals/run_evals.py --no-judge
+	cd $(BACKEND) && set -a && [ -f .env ] && . ./.env; set +a && $(PY) evals/run_evals.py --no-judge
 
 run-backend: ## FastAPI on :8080 with live market data (needs Vertex AI ADC)
-	cd $(BACKEND) && $(VENV)/bin/uvicorn analyst.main:app --reload --port 8080
+	cd $(BACKEND) && set -a && [ -f .env ] && . ./.env; set +a && $(VENV)/bin/uvicorn analyst.main:app --reload --port 8080
 
 run-backend-offline: ## FastAPI on :8080 with deterministic offline fixtures
-	cd $(BACKEND) && ANALYST_OFFLINE_MODE=true $(VENV)/bin/uvicorn analyst.main:app --reload --port 8080
+	cd $(BACKEND) && set -a && [ -f .env ] && . ./.env; set +a && ANALYST_OFFLINE_MODE=true $(VENV)/bin/uvicorn analyst.main:app --reload --port 8080
 
 run-frontend: ## Vite dev server on :5173 (proxies /api to :8080)
 	cd $(FRONTEND) && npm run dev
 
 adk-web: ## ADK developer UI for the agent tree
-	cd $(BACKEND) && $(VENV)/bin/adk web adk_agents
+	cd $(BACKEND) && set -a && [ -f .env ] && . ./.env; set +a && $(VENV)/bin/adk web adk_agents
 
 docker-build: ## Build backend and frontend images locally
 	docker build -t investment-analyst-backend $(BACKEND)

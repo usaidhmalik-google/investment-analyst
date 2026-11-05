@@ -36,7 +36,7 @@ cd investment-analyst && ../.venv/bin/python scripts/preflight.py
 
 It checks ADC, the Vertex flag, that **each configured model actually responds** at the configured location, Yahoo quote and RSS, SEC with your user agent, Alpha Vantage, and Agent Engine sessions if enabled. Fix every FAIL before going on.
 
-**If a model name fails:** the defaults follow the TDD (`ANALYST_ROUTER_MODEL=gemini-3.5-flash`, `ANALYST_REASONING_MODEL=gemini-2.5-pro`, `ANALYST_JUDGE_MODEL=gemini-3.5-flash`). Swap them through env vars; no code changes are needed. Check Model Garden for the exact ids available to your project, since preview ids sometimes have a `-preview` suffix.
+**If a model name fails:** the defaults follow the tiered Gemini 3.x benchmark (`ANALYST_ROUTER_MODEL=gemini-3.5-flash`, `ANALYST_REASONING_MODEL=gemini-3.8-flash`, `ANALYST_JUDGE_MODEL=gemini-3.5-flash`). Swap them through env vars; no code changes are needed. Check Model Garden for the exact ids available to your project, since preview ids sometimes have a `-preview` suffix.
 
 ## 2. Live evaluation (the source of your panel numbers)
 

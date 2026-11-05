@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # --- Models ---------------------------------------------------------------
     router_model: str = Field(default="gemini-3.5-flash", alias="ANALYST_ROUTER_MODEL")
-    reasoning_model: str = Field(default="gemini-2.5-pro", alias="ANALYST_REASONING_MODEL")
+    reasoning_model: str = Field(default="gemini-3.8-flash", alias="ANALYST_REASONING_MODEL")
     judge_model: str = Field(default="gemini-3.5-flash", alias="ANALYST_JUDGE_MODEL")
 
     # --- External data providers ---------------------------------------------
