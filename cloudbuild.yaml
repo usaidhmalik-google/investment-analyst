@@ -46,7 +46,7 @@ steps:
       - pipefail
       - -c
       - |
-        pip install -r requirements-dev.txt
+        pip install -r requirements.lock -r requirements-dev.txt
         ruff format --check .
         ruff check .
         pytest --cov=analyst --cov-fail-under=80
