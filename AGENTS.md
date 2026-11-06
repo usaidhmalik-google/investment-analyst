@@ -73,6 +73,9 @@ and `frontend/src/types.ts` together.
 | Unanchored `lib/` in `.gitignore` (from a Python template) silently ignored `frontend/src/lib/` | Explicitly un-ignore `!frontend/src/lib/` in `.gitignore` and verify with `make lint` (`tsc -b`). |
 | `fact_check.py` parsed non-currency time-window labels (`3M / 6M Rate of Change`, `3M ROC`) as `$3,000,000` and `$6,000,000` (`M` = million) | Strip non-`$` time-horizon labels (`(?<!\$)\b(?:1|3|6|9|12)M...`) in `guardrails/fact_check.py::_STRIP_PATTERNS` before extracting numeric claims. |
 | `opentelemetry-instrumentation-fastapi < 0.65b0` crashed on `OPTIONS` preflight when routes were mounted via `app.include_router(router, prefix=...)` on FastAPI `0.137` (`_IncludedRouter` lacks `.path`) | Register routes directly via `app.add_api_route(f"{prefix}/...", ...)` in `api/app.py` AND pin `opentelemetry-instrumentation-fastapi>=0.65b0` in `requirements.txt`. |
+| `requirements.lock` generated on Python 3.12 contains wheels (`numpy==2.5.4`, `pandas==3.1.0`) with `Requires-Python: >=3.12`, which fail on `python:3.11-slim` | Use `python:3.12-slim` in `investment-analyst/Dockerfile` and `cloudbuild.yaml` to match the lockfile's Python version. |
+| Custom Cloud Build SA (`investment-analyst-build-sa`) failed `FETCHSOURCE` with HTTP 403 on `<project>_cloudbuild` legacy-ACL bucket | Grant `roles/storage.admin` to `google_service_account.build` in `terraform/analyst/iam.tf` and remove the unexpanded top-level `serviceAccount: projects/$PROJECT_ID/...` from `cloudbuild.yaml`. |
+| `COPY --chmod=0755` in `frontend/Dockerfile` failed in Cloud Build (`gcr.io/cloud-builders/docker` runs with BuildKit disabled by default) | Use standard `COPY` followed by `RUN chmod 0755 ...` in `frontend/Dockerfile` so builds succeed with or without BuildKit. |
 
 **When you hit a new mistake, add a row here in the same change that fixes it.**
 

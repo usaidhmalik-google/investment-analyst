@@ -36,10 +36,11 @@ COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY nginx/backend-proxy.conf nginx/security-headers.conf /etc/nginx/snippets/
 # Derives BACKEND_HOST / BACKEND_SNI / DNS_RESOLVER before the template is rendered
 # (scripts run in lexical order; 15 < 20-envsubst-on-templates.sh).
-COPY --chmod=0755 nginx/15-backend-host.envsh /docker-entrypoint.d/15-backend-host.envsh
+COPY nginx/15-backend-host.envsh /docker-entrypoint.d/15-backend-host.envsh
 # Optional ID-token minting for the backend's Cloud Run invoker check (BACKEND_ID_TOKEN=true).
-COPY --chmod=0755 nginx/25-backend-id-token.sh /docker-entrypoint.d/25-backend-id-token.sh
-RUN touch /etc/nginx/snippets/backend-auth.conf
+COPY nginx/25-backend-id-token.sh /docker-entrypoint.d/25-backend-id-token.sh
+RUN chmod 0755 /docker-entrypoint.d/15-backend-host.envsh /docker-entrypoint.d/25-backend-id-token.sh && \
+    touch /etc/nginx/snippets/backend-auth.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080

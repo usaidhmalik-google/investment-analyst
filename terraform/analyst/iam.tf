@@ -81,6 +81,13 @@ resource "google_project_iam_member" "build_log_writer" {
   member  = google_service_account.build.member
 }
 
+# Read source archives uploaded by `gcloud builds submit` from the Cloud Build staging bucket.
+resource "google_project_iam_member" "build_storage_viewer" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = google_service_account.build.member
+}
+
 # Push images to this repository only.
 resource "google_artifact_registry_repository_iam_member" "build_writer" {
   project    = var.project_id
