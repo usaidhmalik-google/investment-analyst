@@ -83,6 +83,24 @@ class TestResolveUserIap:
         assert user == UserIdentity(user_id="accounts.google.com:1234", email="pm@malik.example")
         assert seen == [("tok", AUDIENCE)]
 
+    def test_forwarded_iap_jwt_header(self, monkeypatch):
+        monkeypatch.setattr(
+            auth,
+            "verify_iap_jwt",
+            lambda t, a: {"sub": "accounts.google.com:99", "email": "pm@malik.example", "iss": auth.IAP_ISSUER},
+        )
+        headers = {auth.FORWARDED_IAP_JWT_HEADER: "fwd-tok"}
+        user = auth.resolve_user(req(headers), self.SETTINGS)
+        assert user == UserIdentity(user_id="accounts.google.com:99", email="pm@malik.example")
+
+    def test_forwarded_authenticated_user_headers_fallback(self):
+        headers = {
+            auth.FORWARDED_IAP_EMAIL_HEADER: "accounts.google.com:sa@proj.iam.gserviceaccount.com",
+            auth.FORWARDED_IAP_USER_ID_HEADER: "accounts.google.com:111090",
+        }
+        user = auth.resolve_user(req(headers), self.SETTINGS)
+        assert user == UserIdentity(user_id="accounts.google.com:111090", email="sa@proj.iam.gserviceaccount.com")
+
 
 class TestVerifyIapJwt:
     def test_checks_issuer_and_certs(self, monkeypatch):
@@ -97,6 +115,26 @@ class TestVerifyIapJwt:
         monkeypatch.setattr(id_token, "verify_token", verify_token)
         assert auth.verify_iap_jwt("tok", AUDIENCE) == {"iss": auth.IAP_ISSUER, "sub": "s"}
         assert seen == {"token": "tok", "audience": AUDIENCE, "certs_url": auth.IAP_CERTS_URL}
+
+    def test_cloud_run_alt_audience_accepted(self, monkeypatch):
+        from google.oauth2 import id_token
+
+        cr_aud = "/projects/218585359412/locations/us-central1/services/investment-analyst-frontend"
+
+        def verify_token(token, request, audience, certs_url):
+            if audience is not None:
+                raise ValueError(
+                    "Token has wrong audience https://investment-analyst-frontend-218585359412.us-central1.run.app"
+                )
+            return {
+                "iss": auth.IAP_ISSUER,
+                "sub": "s",
+                "aud": "https://investment-analyst-frontend-218585359412.us-central1.run.app",
+            }
+
+        monkeypatch.setattr(id_token, "verify_token", verify_token)
+        claims = auth.verify_iap_jwt("tok", cr_aud)
+        assert claims["sub"] == "s"
 
     def test_wrong_issuer_rejected(self, monkeypatch):
         from google.oauth2 import id_token

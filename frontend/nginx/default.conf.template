@@ -45,6 +45,10 @@ server {
         include /etc/nginx/snippets/backend-proxy.conf;
     }
 
+    location = /health {
+        include /etc/nginx/snippets/backend-proxy.conf;
+    }
+
     # ---- Static SPA ----------------------------------------------------------
     # Vite emits content-hashed files under /assets/: cache forever.
     location /assets/ {

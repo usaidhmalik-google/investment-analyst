@@ -114,11 +114,15 @@ def create_app(settings: Settings | None = None, service: AnalystService | None 
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz")
+        FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,health,api/health,api/healthz,api/v1/health")
     except Exception:  # noqa: BLE001  # pragma: no cover - instrumentation is optional
         logger.warning("FastAPI OpenTelemetry instrumentation unavailable")
 
     @app.get("/healthz")
+    @app.get("/health")
+    @app.get("/api/health")
+    @app.get("/api/healthz")
+    @app.get("/api/v1/health")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
